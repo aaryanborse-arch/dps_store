@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Options - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Purchase Options — Per School</h2>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        </div>
+        <p class="text-muted">Control which purchase options are available to parents, per school.</p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="table-responsive">
+        <table class="table table-bordered bg-white">
+            <thead><tr><th>School</th><th>Whole Bundle</th><th>All Textbooks + Optional Stationary</th><th>Pick Any Items</th><th></th></tr></thead>
+            <tbody>
+                {% for c in all_cities %}
+                <tr>
+                    <td>{{ c.name }}</td>
+                    <form method="POST" id="form-{{ c.id }}">
+                        <input type="hidden" name="city_id" value="{{ c.id }}">
+                        <td><input type="checkbox" name="bundle_enabled" form="form-{{ c.id }}" {{ 'checked' if c.bundle_enabled }}></td>
+                        <td><input type="checkbox" name="individual_items_enabled" form="form-{{ c.id }}" {{ 'checked' if c.individual_items_enabled }}></td>
+                        <td><input type="checkbox" name="free_shopping_enabled" form="form-{{ c.id }}" {{ 'checked' if c.free_shopping_enabled }}></td>
+                        <td><button type="submit" form="form-{{ c.id }}" class="btn btn-sm btn-primary">Save</button></td>
+                    </form>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Details - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-center">
+            <div class="card p-4 shadow" style="width: 420px;">
+                <h4 class="mb-3">Your Details</h4>
+                <p class="text-muted small">We need this to show correctly on the payment page.</p>
+
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        <div class="alert alert-danger">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST">
+                    <input type="text" name="parent_name" class="form-control mb-3" placeholder="Your Name" required>
+                    <input type="text" name="parent_phone" class="form-control mb-3" placeholder="Phone Number" required>
+                    <input type="email" name="parent_email" class="form-control mb-3" placeholder="Email Address" required>
+                    <button type="submit" class="btn btn-primary w-100">Continue to Payment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

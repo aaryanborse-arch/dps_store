@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Options - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Purchase Options - {{ city.name }}</h2>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card p-4">
+            <p class="text-muted">Turn parent purchase options on or off for {{ city.name }}.</p>
+            <form method="POST">
+                <div class="form-check mb-2">
+                    <input type="checkbox" name="bundle_enabled" class="form-check-input" id="bundleCheck" {{ 'checked' if city.bundle_enabled }}>
+                    <label class="form-check-label" for="bundleCheck">Whole Bundle</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input type="checkbox" name="individual_items_enabled" class="form-check-input" id="individualCheck" {{ 'checked' if city.individual_items_enabled }}>
+                    <label class="form-check-label" for="individualCheck">All Textbooks + Optional Stationary</label>
+                </div>
+                <div class="form-check mb-3">
+                    <input type="checkbox" name="free_shopping_enabled" class="form-check-input" id="freeShopCheck" {{ 'checked' if city.free_shopping_enabled }}>
+                    <label class="form-check-label" for="freeShopCheck">Pick Any Items</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Canteen Coupon - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-center">
+            <div class="card p-4 shadow" style="width: 420px;">
+                <h4 class="text-center mb-3">🍽️ Canteen Coupon</h4>
+
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        <div class="alert alert-danger">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+                    {% endif %}
+                {% endwith %}
+
+                <div class="card p-2 mb-3" style="background:#f2f6fb;">
+                    <p class="mb-1 small">Used this month: <strong>₹{{ '%.0f'|format(used) }}</strong> of ₹{{ monthly_limit }}</p>
+                    <p class="mb-0 small">Remaining: <strong>₹{{ '%.0f'|format(remaining) }}</strong></p>
+                </div>
+
+                {% if valid_options %}
+                <form method="POST" action="{{ url_for('coupons.coupon_checkout') }}">
+                    <select name="amount" class="form-select mb-3" required>
+                        <option value="">Select Amount</option>
+                        {% for a in valid_options %}
+                        <option value="{{ a }}">₹{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary w-100">Pay & Get Coupon (Simulated)</button>
+                </form>
+                {% else %}
+                <p class="text-danger text-center">You've used your full ₹{{ monthly_limit }} coupon limit for this month.</p>
+                {% endif %}
+
+                <a href="{{ url_for('parent.purchase_choice') }}" class="text-center mt-3 d-block">← Back</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

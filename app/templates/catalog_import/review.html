@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Review Catalog Import - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container-fluid mt-5 px-4">
+        <h2 class="mb-3">Review Before Adding to Inventory ({{ rows|length }} item(s) found)</h2>
+        <p class="text-muted">Check each row's Class/Section, GST, and price. Fix anything wrong, then confirm.</p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('catalog_import.confirm') }}">
+            <div class="card p-3 mb-3">
+                <div class="form-check">
+                    <input type="checkbox" name="clear_existing" class="form-check-input" id="clearExisting">
+                    <label class="form-check-label" for="clearExisting">
+                        Clear existing items in the affected classes/sections first (removes old placeholder/test data before importing fresh — items part of a pending online order are safely skipped)
+                    </label>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+            <table class="table table-bordered bg-white">
+                <thead>
+                    <tr>
+                        <th>Item Name</th><th>Publisher</th><th>Subject</th>
+                        <th>Class/Section</th><th>Optional Subject</th>
+                        <th>GST% (or exempt)</th><th>Price</th><th>Qty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td><input type="text" name="name" value="{{ row.name }}" class="form-control form-control-sm"></td>
+                        <td><input type="text" name="publisher" value="{{ row.publisher }}" class="form-control form-control-sm"></td>
+                        <td><input type="text" name="subject" value="{{ row.subject }}" class="form-control form-control-sm"></td>
+                        <td>
+                            <select name="class_key" class="form-select form-select-sm">
+                                <option value="common" {{ 'selected' if row.class_key == 'common' }}>Common Items</option>
+                                <option value="stationary" {{ 'selected' if row.class_key in ('notebook', 'extra', 'stationary') }}>Stationary</option>
+                                {% for c in class_options %}
+                                <option value="{{ c }}" {{ 'selected' if row.class_key == c }}>{{ c|roman }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="text-center">
+                            <input type="checkbox" name="is_elective" {{ 'checked' if row.is_elective }} onclick="return false;">
+                            <input type="hidden" name="is_elective_flag" value="{{ 'true' if row.is_elective else 'false' }}">
+                        </td>
+                        <td><input type="text" name="gst_percent" value="{{ 'exempt' if row.is_exempt else row.gst_percent }}" class="form-control form-control-sm" style="width:90px"></td>
+                        <td><input type="number" step="0.01" name="price" value="{{ row.price }}" class="form-control form-control-sm" style="width:90px"></td>
+                        <td><input type="number" name="quantity" value="{{ row.quantity }}" class="form-control form-control-sm" style="width:70px"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-lg">Confirm & Add to Inventory</button>
+        </form>
+    </div>
+</body>
+</html>

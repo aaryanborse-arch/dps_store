@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-0">{{ current_user.city.name }}</h2>
+                <p class="text-muted">Welcome, {{ current_user.username }}</p>
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <a href="{{ url_for('teacher_bp.issue_item') }}" class="text-decoration-none">
+                    <div class="card p-4 text-center h-100 dashboard-card">
+                        <h4>📚 Issue Item</h4>
+                        <p class="text-muted mb-0">Record an item given to you</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6">
+                <a href="{{ url_for('teacher_bp.my_history') }}" class="text-decoration-none">
+                    <div class="card p-4 text-center h-100 dashboard-card">
+                        <h4>📋 My History</h4>
+                        <p class="text-muted mb-0">Items you've received</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

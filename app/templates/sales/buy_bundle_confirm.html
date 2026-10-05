@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirm Bundle - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Bundle for {{ student_name }} (Class {{ student_class|roman }})</h2>
+            <a href="{{ url_for('sales.buy_bundle_lookup') }}" class="btn btn-secondary">← Search Again</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('sales.buy_bundle_generate') }}">
+            <input type="hidden" name="admission_number" value="{{ admission_number }}">
+            <input type="hidden" name="student_name" value="{{ student_name }}">
+            <input type="hidden" name="student_class" value="{{ student_class }}">
+
+            <div class="table-responsive mb-3">
+            <table class="table table-bordered bg-white">
+                <thead><tr><th>Item</th><th>Publisher</th><th>Subject</th><th>Qty</th><th>Amount</th></tr></thead>
+                <tbody>
+                    {% for item in compulsory_items %}
+                    <tr>
+                        <td>{{ item.product.name }}</td>
+                        <td>{{ item.product.publisher_name or '-' }}</td>
+                        <td>{{ item.product.subject or '-' }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₹{{ '%.2f'|format(item.line_total) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted">No bundle has been set up for this class yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+
+            {% if elective_items %}
+            <div class="card p-3 mb-3">
+                <h5>Optional Subjects — tick which apply</h5>
+                {% for item in elective_items %}
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input elective-cb" name="elective_product_id" value="{{ item.product.id }}" data-amt="{{ item.line_total }}" id="s_elective_{{ item.product.id }}" onchange="updateBundleTotal()">
+                    <label class="form-check-label" for="s_elective_{{ item.product.id }}">
+                        {{ item.product.subject or item.product.name }} — {{ item.product.name }} (₹{{ '%.2f'|format(item.line_total) }})
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if compulsory_items or elective_items %}
+            <h4 class="text-end" id="bundleTotalDisplay">Total: ₹{{ '%.2f'|format(compulsory_total) }}</h4>
+
+            <div class="card p-4">
+                <h5>Buyer Details</h5>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" name="buyer_name" class="form-control" placeholder="Buyer Name" required>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="buyer_phone" class="form-control" placeholder="Phone Number" required>
+                    </div>
+                    <div class="col-md-4">
+                        <select name="payment_method" class="form-select" required>
+                            <option value="">Payment Method</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Card">Card</option>
+                            <option value="UPI">UPI</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success btn-lg mt-3">Generate Bill</button>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <script>
+    const baseTotal = {{ compulsory_total }};
+    function updateBundleTotal() {
+        let total = baseTotal;
+        document.querySelectorAll('.elective-cb:checked').forEach(cb => {
+            total += parseFloat(cb.dataset.amt);
+        });
+        document.getElementById('bundleTotalDisplay').textContent = 'Total: ₹' + total.toFixed(2);
+    }
+    </script>
+</body>
+</html>

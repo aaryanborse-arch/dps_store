@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Inventory - {{ current_user.city.name }}</h2>
+            <div>
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">
+                    {% for message in messages %}<p class="mb-0">{{ message }}</p>{% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card p-3 mb-4">
+            <h5>Add New Product</h5>
+            <form method="POST" class="row g-2">
+                <div class="col-md-2">
+                    <input type="text" name="name" class="form-control" placeholder="Product Name" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="hsn_number" class="form-control" placeholder="HSN Number" required>
+                </div>
+                <div class="col-md-1">
+                    <input type="number" step="0.01" name="gst_percent" class="form-control" placeholder="GST %" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" step="0.01" name="price" class="form-control" placeholder="Price" required>
+                </div>
+                <div class="col-md-2">
+                    <select name="product_type" class="form-select" required>
+                        <option value="">Type</option>
+                        <option value="textbook">Textbook</option>
+                        <option value="notebook">Notebook</option>
+                        <option value="extra">Extra Material</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <input type="text" name="applicable_class" class="form-control" placeholder="Class (opt.)">
+                </div>
+                <div class="col-md-1">
+                    <input type="number" name="stock_quantity" class="form-control" placeholder="Stock">
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                </div>
+            </form>
+        </div>
+
+        {% for section_name, products in sections.items() %}
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">
+                <strong>{{ 'Class ' ~ section_name if section_name != 'Common Items' else section_name }}</strong>
+                <span class="badge bg-light text-dark ms-2">{{ products|length }} item(s)</span>
+            </div>
+            <table class="table table-bordered mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>HSN</th>
+                        <th>GST%</th>
+                        <th>Price</th>
+                        <th>Type</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr class="{{ 'table-warning' if p.is_low_stock() else '' }}">
+                        <form method="POST" action="{{ url_for('inventory.edit_product', product_id=p.id) }}">
+                            <td><input type="text" name="name" value="{{ p.name }}" class="form-control form-control-sm"></td>
+                            <td><input type="text" name="hsn_number" value="{{ p.hsn_number }}" class="form-control form-control-sm"></td>
+                            <td><input type="number" step="0.01" name="gst_percent" value="{{ p.gst_percent }}" class="form-control form-control-sm" style="width:70px"></td>
+                            <td><input type="number" step="0.01" name="price" value="{{ p.price }}" class="form-control form-control-sm" style="width:80px"></td>
+                            <td>{{ p.product_type }}</td>
+                            <td><input type="number" name="stock_quantity" value="{{ p.stock_quantity }}" class="form-control form-control-sm" style="width:70px">
+                                {% if p.is_low_stock() %}<span class="badge bg-danger">Low</span>{% endif %}
+                            </td>
+                            <td>{% if p.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+                            <td>
+                                <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                        </form>
+                                <form method="POST" action="{{ url_for('inventory.toggle_product', product_id=p.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                                        {{ 'Remove' if p.is_active else 'Restore' }}
+                                    </button>
+                                </form>
+                            </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-center text-muted">No products added yet</p>
+        {% endfor %}
+    </div>
+</body>
+</html>

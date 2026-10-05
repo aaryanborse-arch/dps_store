@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Process Return - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Process Return - {{ active_city.name }}</h2>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card p-3 mb-4">
+            <form method="GET" class="d-flex gap-2">
+                <input type="text" name="bill_number" class="form-control" placeholder="Enter Invoice Number" required>
+                <button type="submit" class="btn btn-primary">Find Bill</button>
+            </form>
+        </div>
+
+        {% if bill %}
+        <div class="card p-4 mb-4">
+            <h5>Bill {{ bill.bill_number }} — {{ bill.student_name }} (Class {{ bill.student_class|roman }})</h5>
+            <p class="text-muted small">Admission No.: {{ bill.admission_number }}</p>
+
+            <form method="POST" action="{{ url_for('returns_bp.submit_return') }}">
+                <input type="hidden" name="bill_id" value="{{ bill.id }}">
+                <div class="table-responsive">
+                <table class="table table-bordered bg-white">
+                    <thead><tr><th>Item</th><th>HSN</th><th>Bought Qty</th><th>Already Returned</th><th>Return Qty</th></tr></thead>
+                    <tbody>
+                        {% for item in bill.items %}
+                        {% set returned = already_returned.get(item.id, 0) %}
+                        {% set remaining = item.quantity - returned %}
+                        <tr>
+                            <td>{{ item.product_name }}</td>
+                            <td>{{ item.hsn_number }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ returned }}</td>
+                            <td>
+                                <input type="number" name="return_qty_{{ item.id }}" class="form-control form-control-sm" value="0" min="0" max="{{ remaining }}" {{ 'disabled' if remaining <= 0 }}>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                <input type="text" name="reason" class="form-control mb-3" placeholder="Reason for return (optional)">
+                <button type="submit" class="btn btn-danger">Process Return</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <h5>Recent Returns</h5>
+        <form method="GET" class="d-flex gap-2 mb-3 align-items-end">
+            <div>
+                <label class="form-label mb-0 small">From</label>
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+            </div>
+            <div>
+                <label class="form-label mb-0 small">To</label>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+            <a href="{{ url_for('returns_bp.find_bill') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+        </form>
+        <div class="table-responsive">
+        <table class="table table-bordered bg-white">
+            <thead><tr><th>Credit Note No.</th><th>Against Invoice</th><th>Student</th><th>Date</th><th></th></tr></thead>
+            <tbody>
+                {% for r in history %}
+                <tr>
+                    <td>{{ r.credit_note_number }}</td>
+                    <td>{{ r.bill.bill_number }}</td>
+                    <td>{{ r.bill.student_name }}</td>
+                    <td>{{ r.created_at.strftime('%d-%m-%Y') }}</td>
+                    <td>
+                        <a href="{{ url_for('returns_bp.view_credit_note', return_id=r.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                        <a href="{{ url_for('returns_bp.download_credit_note', return_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-success">PDF</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">No returns recorded yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</body>
+</html>

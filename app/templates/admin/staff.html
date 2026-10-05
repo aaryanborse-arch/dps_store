@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Staff - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Manage Staff & Teachers</h2>
+            <div>
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">
+                    {% for message in messages %}<p class="mb-0">{{ message }}</p>{% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card p-3 mb-4">
+            <h5>Add New User</h5>
+            {% if cities|length == 0 %}
+                <p class="text-danger">You need to add at least one active city first (go to Manage Schools).</p>
+            {% else %}
+            <form method="POST" class="row g-2">
+                <div class="col-md-3">
+                    <input type="text" name="username" class="form-control" placeholder="Username" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="password" name="password" class="form-control" placeholder="Password" required>
+                </div>
+                <div class="col-md-3">
+                    <select name="role" class="form-select" required onchange="toggleCityField(this.value)">
+                        <option value="">Select Role</option>
+                        <option value="store_staff">Store Staff</option>
+                        <option value="super_admin">Super Admin</option>
+                    </select>
+                </div>
+                <div class="col-md-3" id="cityFieldWrapper">
+                    <select name="city_id" id="cityFieldSelect" class="form-select" required>
+                        <option value="">Primary City</option>
+                        {% for city in cities %}
+                        <option value="{{ city.id }}">{{ city.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12 mt-2">
+                    <label class="form-label small text-muted">Additional cities this user can switch into (optional, Store Staff only):</label><br>
+                    {% for city in cities %}
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="extra_city_ids" value="{{ city.id }}" id="extra_{{ city.id }}">
+                        <label class="form-check-label" for="extra_{{ city.id }}">{{ city.name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-2 mt-2">
+                    <button type="submit" class="btn btn-primary w-100">Add User</button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+
+        <table class="table table-bordered bg-white">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Primary City</th>
+                    <th>Additional Cities</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in staff %}
+                <tr>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        {% if user.role == 'super_admin' %}<span class="badge bg-primary">Super Admin</span>
+                        {% else %}{{ user.role }}{% endif %}
+                    </td>
+                    <td>{{ user.city.name if user.city else '-' }}</td>
+                    <td>{{ user.accessible_cities|map(attribute='name')|join(', ') or '-' }}</td>
+                    
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.delete_staff', user_id=user.id) }}" onsubmit="return confirm('Permanently remove this user? This cannot be undone.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-warning mt-1" onclick="document.getElementById('resetForm{{ user.id }}').classList.toggle('d-none')">Reset Password</button>
+                        <form id="resetForm{{ user.id }}" method="POST" action="{{ url_for('admin.reset_staff_password', user_id=user.id) }}" class="d-none mt-1 d-flex gap-1">
+                            <input type="text" name="new_password" class="form-control form-control-sm" placeholder="New password" required>
+                            <button type="submit" class="btn btn-sm btn-primary">Set</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">No staff added yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+    function toggleCityField(role) {
+        const citySelect = document.getElementById('cityFieldSelect');
+        if (role === 'super_admin') {
+            citySelect.removeAttribute('required');
+            citySelect.value = '';
+            citySelect.disabled = true;
+        } else {
+            citySelect.setAttribute('required', 'required');
+            citySelect.disabled = false;
+        }
+    }
+    </script>
+</body>
+</html>

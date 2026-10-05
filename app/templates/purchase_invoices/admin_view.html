@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Invoices - All Schools</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Purchase Invoices - All Schools</h2>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        </div>
+
+        <div class="card p-3 mb-4">
+            <form method="GET">
+                <label class="form-label mb-0">School</label>
+                <select name="city_id" class="form-select" style="max-width:300px" onchange="this.form.submit()">
+                    <option value="all" {{ 'selected' if selected_city_id == 'all' }}>All Schools</option>
+                    {% for c in all_cities %}
+                    <option value="{{ c.id }}" {{ 'selected' if selected_city_id == c.id|string }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+        <table class="table table-bordered bg-white">
+            <thead><tr><th>Date</th><th>School</th><th>Vendor</th><th>Notes</th><th>Uploaded By</th><th>File</th></tr></thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td>{{ inv.invoice_date.strftime('%d-%m-%Y') }}</td>
+                    <td>{{ inv.city.name }}</td>
+                    <td>{{ inv.vendor_name }}</td>
+                    <td>{{ inv.notes or '-' }}</td>
+                    <td>{{ inv.uploaded_by.username if inv.uploaded_by else '-' }}</td>
+                    <td><a href="{{ url_for('purchase_invoices.download_invoice', invoice_id=inv.id) }}" target="_blank" class="btn btn-sm btn-outline-primary">View / Download</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted">No invoices uploaded yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</body>
+</html>

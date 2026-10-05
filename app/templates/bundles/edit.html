@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Class {{ label }} Bundle - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Class {{ label }} Bundle</h2>
+            <a href="{{ url_for('bundles_bp.bundle_list') }}" class="btn btn-secondary">← All Classes</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="mb-3">
+            <input type="text" id="bundleProductSearch" class="form-control" placeholder="Search items to add..." oninput="filterBundleProducts()">
+        </div>
+
+        {% for group in grouped_products %}
+        <div class="card p-3 mb-4">
+            <h5>{{ group.label }}</h5>
+            <div class="table-responsive">
+            <table class="table table-bordered bg-white mb-0 bundle-available-table">
+                <thead>
+                    <tr><th>Product</th><th>Publisher</th><th>Subject</th><th>Price</th><th>Stock</th><th>Qty</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for p in group.products %}
+                    <tr class="{{ 'table-success' if p.id in bundle_items_map else '' }}">
+                        <td>{{ p.name }}{% if p.id in bundle_items_map %} <span class="badge bg-success">In Bundle</span>{% endif %}{% if p.is_elective %} <span class="badge bg-warning text-dark">Optional</span>{% endif %}</td>
+                        <td>{{ p.publisher_name or '-' }}</td>
+                        <td>{{ p.subject or '-' }}</td>
+                        <td>₹{{ p.price }}</td>
+                        <td>{{ p.stock_quantity }}</td>
+                        <td>
+                            <form method="POST" class="d-flex gap-1">
+                                <input type="hidden" name="product_id" value="{{ p.id }}">
+                                <input type="number" name="quantity" value="{{ bundle_items_map[p.id].quantity if p.id in bundle_items_map else 1 }}" min="1" class="form-control form-control-sm" style="width:70px">
+                        </td>
+                        <td>
+                                <button type="submit" class="btn btn-sm btn-primary">{{ 'Update' if p.id in bundle_items_map else 'Add' }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center text-muted">No {{ group.label|lower }} found</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="card p-3">
+            <h5>Current Bundle Contents</h5>
+            <div class="table-responsive">
+            <table class="table table-bordered bg-white mb-0">
+                <thead><tr><th>Product</th><th>Publisher</th><th>Subject</th><th>Qty</th><th>Price</th><th>Line Total</th><th></th></tr></thead>
+                <tbody>
+                    {% for item in bundle.items %}
+                    <tr>
+                        <td>{{ item.product.name if item.product else 'Deleted product' }}</td>
+                        <td>{{ item.product.publisher_name if item.product else '-' }}</td>
+                        <td>{{ item.product.subject if item.product else '-' }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₹{{ item.product.price if item.product else 0 }}</td>
+                        <td>₹{{ '%.2f'|format((item.product.price * item.quantity) if item.product else 0) }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('bundles_bp.remove_bundle_item', item_id=item.id) }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center text-muted">No items in this bundle yet</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            <h4 class="text-end mt-3">Bundle Total: ₹{{ '%.2f'|format(bundle.total_price()) }}</h4>
+        </div>
+    </div>
+
+    <script>
+    function filterBundleProducts() {
+        const searchValue = document.getElementById('bundleProductSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('.bundle-available-table tbody tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchValue) ? '' : 'none';
+        });
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shop - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3>{{ city.name }} - Pick Any Items</h3>
+            <a href="{{ url_for('parent.view_cart') }}" class="btn btn-success">View Cart ({{ cart|length }})</a>
+        </div>
+        <p class="text-muted small">No items are compulsory here — pick exactly what you want.</p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="table-responsive">
+            <table class="table table-bordered bg-white">
+                <thead><tr><th></th><th>Item</th><th>Class</th><th>Price</th><th>Stock</th><th>Qty</th></tr></thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr>
+                        <td><input type="checkbox" name="product_id" value="{{ p.id }}" {{ 'checked' if cart.get(p.id|string) }}></td>
+                        <td>{{ p.name }}</td>
+                        <td>{{ 'Common' if not p.applicable_class else (p.applicable_class if p.applicable_class in ('stationary','notebook') else 'Class ' ~ (p.applicable_class|roman)) }}</td>
+                        <td>₹{{ p.price }}</td>
+                        <td>{{ p.stock_quantity }}</td>
+                        <td><input type="number" name="qty_{{ p.id }}" value="{{ cart.get(p.id|string, 1) }}" min="1" max="{{ p.stock_quantity }}" class="form-control form-control-sm" style="width:70px"></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted">No items available right now</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg">Update Cart</button>
+        </form>
+    </div>
+    {% include 'parent/_footer.html' %}
+</body>
+</html>

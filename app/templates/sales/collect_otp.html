@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Collect OTP - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Collect Online Order (OTP)</h2>
+            <div>
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card p-4 mb-4">
+            <h5>Enter OTP shown by parent</h5>
+            <form method="POST" class="d-flex gap-2">
+                <input type="text" name="otp_code" class="form-control" placeholder="6-digit OTP" maxlength="6" required autofocus>
+                <button type="submit" class="btn btn-success">Verify & Handover</button>
+            </form>
+        </div>
+
+        <h5>Pending Orders ({{ pending_orders|length }})</h5>
+        <table class="table table-bordered bg-white">
+            <thead>
+                <tr>
+                    <th>Order No.</th>
+                    <th>Parent</th>
+                    <th>Student</th>
+                    <th>Class</th>
+                    <th>Total</th>
+                    <th>Ordered On</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in pending_orders %}
+                <tr>
+                    <td>{{ order.order_number }}</td>
+                    <td>{{ order.parent_name }} ({{ order.parent_phone }})</td>
+                    <td>{{ order.student_name }}</td>
+                    <td>{{ order.student_class|roman }}</td>
+                    <td>₹{{ order.total_amount }}</td>
+                    <td>{{ order.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('items-{{ order.id }}').classList.toggle('d-none')">View Items</button>
+                        <a href="{{ url_for('sales.print_order_items', order_id=order.id) }}" target="_blank" class="btn btn-sm btn-outline-success">Print</a>
+                        <form method="POST" action="{{ url_for('sales.cancel_order', order_id=order.id) }}" class="d-inline" onsubmit="return confirm('Cancel this order? Stock will be restored, and this cannot be undone.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr id="items-{{ order.id }}" class="d-none">
+                    <td colspan="7">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
+                            <tbody>
+                                {% for item in order.items %}
+                                <tr><td>{{ item.product_name }}</td><td>{{ item.quantity }}</td><td>₹{{ item.price }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted">No pending orders right now</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

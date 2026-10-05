@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Class Bundle - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h3 class="mb-1">{{ city.name }} - Class {{ student_class_label }}</h3>
+        <p class="text-muted mb-4">Compulsory items are included automatically. For optional subjects, tick the one(s) that apply to your child.</p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('parent.bundle_checkout_start') }}">
+        <div class="table-responsive mb-3">
+        <table class="table table-bordered bg-white">
+            <thead><tr><th>Item</th><th>Subject</th><th>Amount</th></tr></thead>
+            <tbody>
+                {% for item in compulsory_display %}
+                <tr>
+                    {% if item.names is defined %}
+                    <td>{{ item.names|join(', ') }}</td>
+                    <td>{{ item.subject }}</td>
+                    <td>₹{{ '%.2f'|format(item.line_total) }}</td>
+                    {% else %}
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.product.subject or '-' }}</td>
+                    <td>₹{{ '%.2f'|format(item.line_total) }}</td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-center text-muted">No bundle has been set up for this class yet. Please contact the store.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        {% if elective_items %}
+        <div class="card p-3 mb-3">
+            <h5>Optional Subjects — select the one(s) that apply</h5>
+            {% for item in elective_items %}
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input elective-cb" name="elective_product_id" value="{{ item.product.id }}" data-amt="{{ item.line_total }}" id="elective_{{ item.product.id }}" onchange="updateBundleTotal()">
+                <label class="form-check-label" for="elective_{{ item.product.id }}">
+                    {{ item.product.subject or item.product.name }} — {{ item.product.name }} (₹{{ '%.2f'|format(item.line_total) }})
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if compulsory_display or elective_items %}
+        <h4 class="text-end" id="bundleTotalDisplay" data-base-total="{{ compulsory_total or 0 }}">Total: ₹{{ '%.2f'|format(compulsory_total or 0) }}</h4>
+        <div class="text-end">
+            <button type="submit" class="btn btn-primary btn-lg">Proceed to Checkout</button>
+        </div>
+        {% endif %}
+        </form>
+    </div>
+
+    <script>
+    const baseTotal = parseFloat(document.getElementById('bundleTotalDisplay').dataset.baseTotal);
+    function updateBundleTotal() {
+        let total = baseTotal;
+        document.querySelectorAll('.elective-cb:checked').forEach(cb => {
+            total += parseFloat(cb.dataset.amt);
+        });
+        document.getElementById('bundleTotalDisplay').textContent = 'Total: ₹' + total.toFixed(2);
+    }
+    </script>
+    
+</body>
+</html>
+
+

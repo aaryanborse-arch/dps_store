@@ -1,0 +1,110 @@
+from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask_login import login_required, current_user
+from app import db
+from app.models import Bundle, BundleItem, Product
+from app.inventory import store_staff_required
+from app.city_utils import get_active_city_id
+from app.class_options import CLASS_OPTIONS
+from app.pdf_utils import to_roman
+
+bundles_bp = Blueprint('bundles_bp', __name__, url_prefix='/inventory/bundles')
+
+
+def get_or_create_bundle(city_id, applicable_class):
+    bundle = Bundle.query.filter_by(city_id=city_id, applicable_class=applicable_class).first()
+    if not bundle:
+        bundle = Bundle(city_id=city_id, applicable_class=applicable_class)
+        db.session.add(bundle)
+        db.session.commit()
+    return bundle
+
+
+@bundles_bp.route('/')
+@login_required
+@store_staff_required
+def bundle_list():
+    city_id = get_active_city_id()
+    summary = []
+    for c in CLASS_OPTIONS:
+        bundle = Bundle.query.filter_by(city_id=city_id, applicable_class=c).first()
+        count = len(bundle.items) if bundle else 0
+        summary.append({'class_value': c, 'label': to_roman(c), 'count': count})
+    return render_template('bundles/list.html', summary=summary)
+
+
+@bundles_bp.route('/<class_value>', methods=['GET', 'POST'])
+@login_required
+@store_staff_required
+def bundle_edit(class_value):
+    city_id = get_active_city_id()
+    bundle = get_or_create_bundle(city_id, class_value)
+
+    if request.method == 'POST':
+        product_id = request.form.get('product_id')
+        quantity = request.form.get('quantity', '1').strip()
+        if not product_id:
+            flash('Select a product to add')
+            return redirect(url_for('bundles_bp.bundle_edit', class_value=class_value))
+        try:
+            quantity = int(quantity)
+        except ValueError:
+            quantity = 1
+
+        product = Product.query.get(int(product_id))
+        if not product or product.city_id != city_id:
+            flash('Invalid product')
+            return redirect(url_for('bundles_bp.bundle_edit', class_value=class_value))
+
+        existing_item = BundleItem.query.filter_by(bundle_id=bundle.id, product_id=product.id).first()
+        if existing_item:
+            existing_item.quantity = quantity
+            flash(f'Updated "{product.name}" quantity to {quantity}')
+        else:
+            db.session.add(BundleItem(bundle_id=bundle.id, product_id=product.id, quantity=quantity))
+            flash(f'"{product.name}" added to Class {to_roman(class_value)} bundle')
+        db.session.commit()
+        return redirect(url_for('bundles_bp.bundle_edit', class_value=class_value))
+
+    # only show products that belong to this class, or are Common Items (applicable_class is None)
+    eligible_products = Product.query.filter(
+        Product.city_id == city_id,
+        Product.is_active == True,
+        db.or_(
+            Product.applicable_class == class_value,
+            Product.applicable_class.is_(None),
+            Product.applicable_class.in_(['notebook', 'extra', 'stationary'])
+        )
+    ).order_by(Product.name).all()
+    class_items = [p for p in eligible_products if p.applicable_class == class_value]
+    common_items = [p for p in eligible_products if p.applicable_class is None]
+    stationary_items = [p for p in eligible_products if p.applicable_class in ('extra', 'stationary')]
+    notebook_items = [p for p in eligible_products if p.applicable_class == 'notebook']
+
+    grouped_products = [
+        {'label': f'Class {to_roman(class_value)} Items', 'products': class_items},
+        {'label': 'Common Items', 'products': common_items},
+        {'label': 'Stationary', 'products': stationary_items},
+        {'label': 'Notebook', 'products': notebook_items},
+    ]
+
+    bundle_items_map = {i.product_id: i for i in bundle.items}
+
+    return render_template('bundles/edit.html', bundle=bundle, class_value=class_value,
+                            label=to_roman(class_value), grouped_products=grouped_products,
+                            bundle_items_map=bundle_items_map)
+
+
+@bundles_bp.route('/item/<int:item_id>/remove', methods=['POST'])
+@login_required
+@store_staff_required
+def remove_bundle_item(item_id):
+    item = BundleItem.query.get_or_404(item_id)
+    bundle = item.bundle
+    if bundle.city_id != get_active_city_id():
+        flash('Access denied')
+        return redirect(url_for('bundles_bp.bundle_list'))
+    class_value = bundle.applicable_class
+    db.session.delete(item)
+    db.session.commit()
+    flash('Item removed from bundle')
+    return redirect(url_for('bundles_bp.bundle_edit', class_value=class_value))

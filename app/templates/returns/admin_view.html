@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Returns - All Schools</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Returns - All Schools</h2>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        </div>
+
+        <div class="card p-3 mb-4">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label mb-0">School</label>
+                    <select name="city_id" class="form-select">
+                        <option value="all" {{ 'selected' if selected_city_id == 'all' }}>All Schools</option>
+                        {% for c in all_cities %}
+                        <option value="{{ c.id }}" {{ 'selected' if selected_city_id == c.id|string }}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-0 small">From</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-0 small">To</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+        <table class="table table-bordered bg-white">
+            <thead><tr><th>Credit Note No.</th><th>School</th><th>Against Invoice</th><th>Student</th><th>Admission No.</th><th>Processed By</th><th>Date</th><th></th></tr></thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td>{{ r.credit_note_number }}</td>
+                    <td>{{ r.city.name }}</td>
+                    <td>{{ r.bill.bill_number }}</td>
+                    <td>{{ r.bill.student_name }}</td>
+                    <td>{{ r.bill.admission_number }}</td>
+                    <td>{{ r.recorded_by.username if r.recorded_by else '-' }}</td>
+                    <td>{{ r.created_at.strftime('%d-%m-%Y') }}</td>
+                    <td>
+                        <a href="{{ url_for('returns_bp.view_credit_note', return_id=r.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                        <a href="{{ url_for('returns_bp.download_credit_note', return_id=r.id) }}" target="_blank" class="btn btn-sm btn-outline-success">PDF</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted">No returns recorded yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</body>
+</html>

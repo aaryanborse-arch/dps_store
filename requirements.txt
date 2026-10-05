@@ -1,0 +1,9 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+reportlab
+openpyxl
+pdfplumber
+gunicorn
+psycopg2-binary
+requests

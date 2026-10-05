@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <head>
+    <meta charset="UTF-8">
+    <title>Stock Reports - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Stock Reports</h2>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        </div>
+
+        <div class="card p-3 mb-4">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Period</label>
+                    <select name="period" class="form-select" onchange="this.form.submit()">
+                        <option value="daily" {{ 'selected' if period == 'daily' }}>Daily</option>
+                        <option value="monthly" {{ 'selected' if period == 'monthly' }}>Monthly</option>
+                        <option value="yearly" {{ 'selected' if period == 'yearly' }}>Yearly</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Reference Date</label>
+                    <input type="date" name="date" class="form-control" value="{{ ref_date.strftime('%Y-%m-%d') }}" onchange="this.form.submit()">
+                </div>
+                {% if all_cities is not none %}
+                <div class="col-md-3">
+                    <label class="form-label">School</label>
+                    <select name="city_id" class="form-select" onchange="this.form.submit()">
+                        <option value="all" {{ 'selected' if selected_city_id == 'all' }}>All Schools</option>
+                        {% for c in all_cities %}
+                        <option value="{{ c.id }}" {{ 'selected' if selected_city_id == c.id|string }}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-3 d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-primary">Refresh</button>
+                    <a href="{{ url_for('reports.download_report', period=period, date=ref_date.strftime('%Y-%m-%d'), city_id=selected_city_id) }}" class="btn btn-success">Download PDF</a>
+                    <a href="{{ url_for('reports.download_report_excel', period=period, date=ref_date.strftime('%Y-%m-%d'), city_id=selected_city_id) }}" class="btn btn-success">Download Excel</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card p-3 text-center">
+                    <h6 class="text-muted">Total Bills</h6>
+                    <h3>{{ data.total_bills }}</h3>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card p-3 text-center">
+                    <h6 class="text-muted">Total Amount</h6>
+                    <h3>₹{{ '%.2f'|format(data.total_amount) }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3 mt-4 mb-3">
+    <h5>Filter Stock Overview by Class</h5>
+    <form method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+        <input type="hidden" name="period" value="{{ period }}">
+        <input type="hidden" name="date" value="{{ ref_date.strftime('%Y-%m-%d') }}">
+        {% if all_cities is not none %}<input type="hidden" name="city_id" value="{{ selected_city_id }}">{% endif %}
+        <div>
+            <label class="form-label mb-0">Class / Section</label>
+            <select name="stock_class" class="form-select">
+                <option value="">All Classes (grouped view)</option>
+                <option value="common" {{ 'selected' if stock_class_filter == 'common' }}>Common Items</option>
+                <option value="stationary" {{ 'selected' if stock_class_filter == 'stationary' }}>Stationary</option>
+                {% for c in class_options %}
+                <option value="{{ c }}" {{ 'selected' if stock_class_filter == c }}>{{ c|roman }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Apply</button>
+        <a href="{{ url_for('reports.download_report', period=period, date=ref_date.strftime('%Y-%m-%d'), city_id=selected_city_id, stock_class=stock_class_filter) }}" class="btn btn-success">Download PDF</a>
+        <a href="{{ url_for('reports.download_report_excel', period=period, date=ref_date.strftime('%Y-%m-%d'), city_id=selected_city_id, stock_class=stock_class_filter) }}" class="btn btn-success">Download Excel</a>
+    </form>
+</div>
+
+{% if stock_class_filter %}
+        <div class="card p-3 mb-3">
+            <h5>Stock Overview — {{ 'Common Items' if stock_class_filter == 'common' else ('Stationary' if stock_class_filter == 'stationary' else 'Class ' ~ (stock_class_filter|roman)) }}</h5>
+            <div class="table-responsive">
+            <table class="table table-bordered mb-0">
+                <thead><tr><th>Sr.No.</th><th>Product</th><th>Year</th><th>MRP</th><th>Opening Stock</th><th>Inward Stock</th><th>Current Stock</th><th>Sales</th><th>Closing Stock</th></tr></thead>
+                <tbody>
+                    {% for s in data.stock_overview %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ s.name }}</td>
+                        <td>{{ s.year or '-' }}</td>
+                        <td>₹{{ s.price }}</td>
+                        <td>{{ s.opening_stock }}</td>
+                        <td>{{ s.inward_stock }}</td>
+                        <td>{{ s.current_stock }}</td>
+                        <td>{{ s.sales }}</td>
+                        <td>{{ s.closing_stock }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" class="text-center text-muted">No products found for this class</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        {% else %}
+        {% for group in data.grouped_stock_overview %}
+        <div class="card p-3 mb-3">
+            <h5>{{ group.label }}</h5>
+            <div class="table-responsive">
+            <table class="table table-bordered mb-0">
+                <thead><tr><th>Sr.No.</th><th>Product</th><th>Year</th><th>MRP</th><th>Opening Stock</th><th>Inward Stock</th><th>Current Stock</th><th>Sales</th><th>Closing Stock</th></tr></thead>
+                <tbody>
+                    {% for s in group.products %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ s.name }}</td>
+                        <td>{{ s.year or '-' }}</td>
+                        <td>₹{{ s.price }}</td>
+                        <td>{{ s.opening_stock }}</td>
+                        <td>{{ s.inward_stock }}</td>
+                        <td>{{ s.current_stock }}</td>
+                        <td>{{ s.sales }}</td>
+                        <td>{{ s.closing_stock }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+    </div>
+</body>
+</html>

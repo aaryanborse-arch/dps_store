@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print - Order {{ order.order_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 13px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #999; padding: 6px; text-align: left; }
+        h3 { margin-bottom: 4px; }
+        .total-line { text-align: right; margin-top: 10px; font-size: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h3>Order {{ order.order_number }} — {{ order.student_name }} (Class {{ order.student_class|roman }})</h3>
+    <p>
+        <strong>Admission No.:</strong> {{ order.admission_number }}<br>
+        <strong>Parent:</strong> {{ order.parent_name }} ({{ order.parent_phone }})<br>
+        <strong>Ordered On:</strong> {{ order.created_at.strftime('%d-%m-%Y %H:%M') }}
+    </p>
+
+    <table>
+        <thead>
+            <tr><th>Item</th><th>Quantity</th><th>Price</th></tr>
+        </thead>
+        <tbody>
+            {% for item in order.items %}
+            <tr>
+                <td>{{ item.product_name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>₹{{ item.price }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="total-line">Total: ₹{{ order.total_amount }}</div>
+
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
+</body>
+</html>

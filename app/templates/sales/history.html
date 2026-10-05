@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bill History - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Bill History - {{ active_city.name }}</h2>
+            <div>
+                <a href="{{ url_for('sales.counter_sale') }}" class="btn btn-primary">New Sale</a>
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
+            </div>
+        </div>
+
+        <div class="card p-3 mb-4">
+            <form method="GET" class="d-flex gap-2 align-items-end">
+                <div>
+                    <label class="form-label mb-0">Date</label>
+                    <input type="date" name="date" class="form-control" value="{{ selected_date.strftime('%Y-%m-%d') }}" onchange="this.form.submit()">
+                </div>
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </form>
+        </div>
+        <div class="mb-3">
+            <input type="text" id="billHistorySearch" class="form-control" placeholder="Search by bill no., buyer name, phone, or student name..." oninput="filterBillHistory()">
+        </div>
+        <table class="table table-bordered bg-white">
+            <thead>
+                <tr>
+                    <th>Invoice No.</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Buyer</th>
+                    <th>Phone</th>
+                    <th>Student</th>
+                    <th>Class</th>
+                    <th>Payment</th>
+                    <th>Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="billHistoryBody">
+                {% for bill in bills %}
+                <tr class="bill-row">
+                    <td>{{ bill.bill_number }}</td>
+                    <td>{{ bill.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
+                    <td>
+                        {% if bill.sale_type == 'online' %}
+                            <span class="badge bg-info text-dark">Online</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Offline</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ bill.buyer_name }}</td>
+                    <td>{{ bill.buyer_phone }}</td>
+                    <td>{{ bill.student_name or '-' }}</td>
+                    <td>{{ bill.student_class|roman if bill.student_class else '-' }}</td>
+                    <td>{{ bill.payment_method or '-' }}</td>
+                    <td>₹{{ bill.total_amount }}</td>
+                    <td>
+                        <a href="{{ url_for('sales.view_bill', bill_id=bill.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                        <a href="{{ url_for('sales.download_bill', bill_id=bill.id) }}" class="btn btn-sm btn-outline-success">PDF</a>
+                        <a href="{{ url_for('sales.download_bill_excel', bill_id=bill.id) }}" class="btn btn-sm btn-success">Excel</a>
+                        <form method="POST" action="{{ url_for('sales.delete_bill', bill_id=bill.id) }}" class="d-inline" onsubmit="return confirm('Delete this bill permanently? This cannot be undone.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted">No bills on this date</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+    function filterBillHistory() {
+        const searchValue = document.getElementById('billHistorySearch').value.toLowerCase();
+        const rows = document.querySelectorAll('#billHistoryBody tr.bill-row');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchValue) ? '' : 'none';
+        });
+    }
+    </script>
+</body>
+</html>

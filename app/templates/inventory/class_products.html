@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ label }} - Inventory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>{{ label }}</h2>
+            <a href="{{ url_for('inventory.class_list') }}" class="btn btn-secondary">← Back to All Classes</a>
+        </div>
+
+        {% if class_key in ('stationary', 'common') %}
+        <div class="mb-3">
+            <input type="text" id="productSearch" class="form-control" placeholder="Search items..." oninput="filterProductTable()">
+        </div>
+        {% endif %}
+
+        {% if existing_groups %}
+        <div class="mb-3">
+            <label class="form-label mb-1">Filter by Group</label>
+            <select id="groupFilter" class="form-select" style="max-width:300px" onchange="filterByGroup(this.value)">
+                <option value="all">All Items</option>
+                {% for g in existing_groups %}
+                <option value="{{ g }}">{{ g }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">{% for m in messages %}<p class="mb-0">{{ m }}</p>{% endfor %}</div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="card p-3 mb-4">
+            <h5>Add Product to {{ label }}</h5>
+            <form method="POST" class="row g-2">
+                <div class="col-md-3">
+                    <input type="text" name="name" class="form-control" placeholder="Product Name" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="group_name" list="group-options" class="form-control" placeholder="Group (optional, e.g. Chart Paper)">
+                    <datalist id="group-options">
+                        {% for g in existing_groups %}
+                        <option value="{{ g }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                {% if class_key not in ('stationary', 'common') %}
+                <div class="col-md-2">
+                    <input type="text" name="publisher_name" class="form-control" placeholder="Publisher">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="subject" class="form-control" placeholder="Subject">
+                </div>
+                {% endif %}
+                <div class="col-md-1">
+                    <input type="text" name="year" class="form-control" placeholder="Year">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="hsn_number" class="form-control" placeholder="HSN Number" required>
+                </div>
+                <div class="col-md-1">
+                    <input type="text" name="gst_percent" class="form-control" placeholder="GST% or 'exempt'" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" step="0.01" name="price" class="form-control" placeholder="Price" required>
+                </div>
+                <input type="hidden" name="product_type" value="{{ 'extra' if class_key in ('stationary', 'common') else 'textbook' }}">
+                <div class="col-md-1">
+                    <input type="number" name="stock_quantity" class="form-control" placeholder="Stock">
+                </div>
+                <div class="col-md-2 d-flex align-items-center">
+                    <div class="form-check">
+                        <input type="checkbox" name="is_elective" class="form-check-input" id="isElectiveAdd">
+                        <label class="form-check-label" for="isElectiveAdd">Optional Subject</label>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+        <table class="table table-bordered bg-white">
+            <thead>
+                <tr>
+                    <th style="min-width:220px;">Name</th>
+                    {% if class_key not in ('stationary', 'common') %}<th>Publisher</th><th>Subject</th>{% endif %}
+                    <th>Year</th><th>HSN</th><th>GST</th><th>Price</th><th>Optional</th><th>Stock</th><th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="productTableBody">
+                {% for row in display_rows %}
+                    {% if row.type == 'single' %}
+                        {% set p = row.product %}
+                        <tr class="{{ 'table-warning' if p.is_low_stock() else '' }}" data-group="{{ p.group_name or '' }}">
+                            <td><input type="text" name="name" form="edit-form-{{ p.id }}" value="{{ p.name }}" class="form-control form-control-sm" style="min-width:220px;"></td>
+                            {% if class_key not in ('stationary', 'common') %}
+                            <td><input type="text" name="publisher_name" form="edit-form-{{ p.id }}" value="{{ p.publisher_name or '' }}" class="form-control form-control-sm"></td>
+                            <td><input type="text" name="subject" form="edit-form-{{ p.id }}" value="{{ p.subject or '' }}" class="form-control form-control-sm"></td>
+                            {% endif %}
+                            <td><input type="text" name="year" form="edit-form-{{ p.id }}" value="{{ p.year or '' }}" class="form-control form-control-sm" placeholder="2026-27" style="width:90px"></td>
+                            <td><input type="text" name="hsn_number" form="edit-form-{{ p.id }}" value="{{ p.hsn_number }}" class="form-control form-control-sm"></td>
+                            <td><input type="text" name="gst_percent" form="edit-form-{{ p.id }}" value="{{ 'exempt' if p.is_gst_exempt else p.gst_percent }}" class="form-control form-control-sm" style="width:90px"></td>
+                            <td><input type="number" step="0.01" name="price" form="edit-form-{{ p.id }}" value="{{ p.price }}" class="form-control form-control-sm" style="width:80px"></td>
+                            <td><input type="checkbox" name="is_elective" form="edit-form-{{ p.id }}" {{ 'checked' if p.is_elective }}></td>
+                            <td>{{ p.stock_quantity }}{% if p.is_low_stock() %} <span class="badge bg-danger">Low</span>{% endif %}</td>
+                            <td>
+                                <button type="submit" form="edit-form-{{ p.id }}" class="btn btn-sm btn-primary">Save</button>
+                                <button type="submit" form="delete-form-{{ p.id }}" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </td>
+                        </tr>
+                    {% elif row.type == 'group' %}
+                        {% set group_id = 'group-' ~ loop.index %}
+                        <tr class="table-secondary" style="cursor:pointer;" onclick="toggleGroup('{{ group_id }}', this)">
+                            <td colspan="10">
+                                <span class="group-arrow" style="display:inline-block; transition: transform 0.15s;">▶</span>
+                                &nbsp;📦 <strong>{{ row.group_name }}</strong> <span class="text-muted">({{ row.variants|length }} variants — click to expand)</span>
+                            </td>
+                        </tr>
+                        {% for p in row.variants %}
+                        <tr class="d-none {{ 'table-warning' if p.is_low_stock() else '' }}" data-group="{{ p.group_name or '' }}" data-group-parent="{{ group_id }}">
+                            <td>&nbsp;&nbsp;&nbsp;<span class="text-muted small" title="{{ p.name }}">{{ p.short_label }}</span><input type="hidden" name="name" form="edit-form-{{ p.id }}" value="{{ p.name }}"></td>
+                            {% if class_key not in ('stationary', 'common') %}
+                            <td><input type="text" name="publisher_name" form="edit-form-{{ p.id }}" value="{{ p.publisher_name or '' }}" class="form-control form-control-sm"></td>
+                            <td><input type="text" name="subject" form="edit-form-{{ p.id }}" value="{{ p.subject or '' }}" class="form-control form-control-sm"></td>
+                            {% endif %}
+                            <td><input type="text" name="year" form="edit-form-{{ p.id }}" value="{{ p.year or '' }}" class="form-control form-control-sm" placeholder="2026-27" style="width:90px"></td>
+                            <td><input type="text" name="hsn_number" form="edit-form-{{ p.id }}" value="{{ p.hsn_number }}" class="form-control form-control-sm"></td>
+                            <td><input type="text" name="gst_percent" form="edit-form-{{ p.id }}" value="{{ 'exempt' if p.is_gst_exempt else p.gst_percent }}" class="form-control form-control-sm" style="width:90px"></td>
+                            <td><input type="number" step="0.01" name="price" form="edit-form-{{ p.id }}" value="{{ p.price }}" class="form-control form-control-sm" style="width:80px"></td>
+                            <td><input type="checkbox" name="is_elective" form="edit-form-{{ p.id }}" {{ 'checked' if p.is_elective }}></td>
+                            <td>{{ p.stock_quantity }}{% if p.is_low_stock() %} <span class="badge bg-danger">Low</span>{% endif %}</td>
+                            <td>
+                                <button type="submit" form="edit-form-{{ p.id }}" class="btn btn-sm btn-primary">Save</button>
+                                <button type="submit" form="delete-form-{{ p.id }}" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                {% else %}
+                <tr><td colspan="10" class="text-center text-muted">No products in this section yet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        {% for p in products %}
+        <form id="edit-form-{{ p.id }}" method="POST" action="{{ url_for('inventory.edit_product', product_id=p.id) }}" style="display:none;"></form>
+        <form id="delete-form-{{ p.id }}" method="POST" action="{{ url_for('inventory.delete_product', product_id=p.id) }}" onsubmit="return confirm('Permanently delete this item? This cannot be undone.');" style="display:none;"></form>
+        {% endfor %}
+    </div>
+    <script>
+    function filterProductTable() {
+        const searchValue = document.getElementById('productSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('#productTableBody tr');
+        rows.forEach(row => {
+            const nameInput = row.querySelector('input[name="name"]');
+            const nameText = nameInput ? nameInput.value.toLowerCase() : '';
+            row.style.display = nameText.includes(searchValue) ? '' : 'none';
+        });
+    }
+
+    function filterByGroup(groupValue) {
+        const rows = document.querySelectorAll('tbody tr[data-group]');
+        rows.forEach(row => {
+            if (groupValue === 'all' || row.dataset.group === groupValue) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function toggleGroup(groupId, headerRow) {
+        const childRows = document.querySelectorAll('[data-group-parent="' + groupId + '"]');
+        const arrow = headerRow.querySelector('.group-arrow');
+        const isExpanding = childRows[0] && childRows[0].classList.contains('d-none');
+        childRows.forEach(r => r.classList.toggle('d-none'));
+        arrow.style.transform = isExpanding ? 'rotate(90deg)' : 'rotate(0deg)';
+    }
+    </script>
+</body>
+</html>

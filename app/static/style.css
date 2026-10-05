@@ -1,0 +1,180 @@
+:root {
+    --dps-green: #1E7A46;
+    --dps-green-dark: #145C33;
+    --dps-orange: #E4622F;
+    --dps-orange-dark: #C94E1F;
+    --dps-gold: #D9A441;
+    --cream-bg: #FBF6ED;
+    --card-bg: #FFFFFF;
+    --text-dark: #2E2A24;
+}
+
+* {
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+body {
+    background-color: var(--cream-bg) !important;
+    color: var(--text-dark);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 1.05rem;
+}
+
+h1, h2, h3, h4 {
+    color: var(--dps-green-dark);
+    font-weight: 600;
+}
+
+/* ---- Header bars (dark sections used for table headers etc.) ---- */
+.bg-dark, .card-header.bg-dark {
+    background-color: var(--dps-green) !important;
+    color: #ffffff !important;
+    border-color: var(--dps-green) !important;
+}
+
+/* ---- Buttons ---- */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: var(--dps-orange) !important;
+    border-color: var(--dps-orange) !important;
+}
+.btn-primary:hover {
+    background-color: var(--dps-orange-dark) !important;
+    border-color: var(--dps-orange-dark) !important;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: var(--dps-green) !important;
+    border-color: var(--dps-green) !important;
+}
+.btn-secondary:hover {
+    background-color: var(--dps-green-dark) !important;
+    border-color: var(--dps-green-dark) !important;
+}
+
+.btn-success {
+    background-color: var(--dps-green) !important;
+    border-color: var(--dps-green) !important;
+}
+.btn-success:hover {
+    background-color: var(--dps-green-dark) !important;
+    border-color: var(--dps-green-dark) !important;
+}
+
+.btn-outline-primary, .btn-outline-success {
+    color: var(--dps-green) !important;
+    border-color: var(--dps-green) !important;
+}
+.btn-outline-primary:hover, .btn-outline-success:hover {
+    background-color: var(--dps-green) !important;
+    color: #fff !important;
+}
+
+.btn-outline-warning {
+    color: var(--dps-gold) !important;
+    border-color: var(--dps-gold) !important;
+}
+.btn-outline-warning:hover {
+    background-color: var(--dps-gold) !important;
+    color: #fff !important;
+}
+
+/* ---- Cards ---- */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid #EBE0D0;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(30, 122, 70, 0.06);
+}
+
+.dashboard-card {
+    cursor: pointer;
+    border-radius: 14px;
+}
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 24px rgba(220, 145, 16, 0.15);
+    border-color: var(--dps-green);
+}
+.dashboard-card h4 {
+    color: var(--dps-green-dark);
+    margin-bottom: 6px;
+}
+
+/* ---- Badges ---- */
+.badge.bg-primary { background-color: var(--dps-green) !important; }
+.badge.bg-success { background-color: var(--dps-green) !important; }
+.badge.bg-warning { background-color: var(--dps-gold) !important; }
+.badge.bg-info { background-color: var(--dps-orange) !important; color: #fff !important; }
+
+/* ---- Forms ---- */
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #044f27;
+    font-size: 1.05rem;
+    padding: 0.5rem 0.9rem;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--dps-green);
+    box-shadow: 0 0 0 0.2rem rgba(30, 122, 70, 0.15);
+}
+
+.btn-lg {
+    font-size: 1.2rem;
+    padding: 0.7rem 1.2rem;
+}
+
+/* ---- Tables ---- */
+.table td, .table th {
+    vertical-align: middle;
+    padding: 10px 12px;
+}
+.table td { min-width: 90px; }
+.table input.form-control-sm, .table select.form-select-sm {
+    padding: 6px 8px;
+    font-size: 0.95rem;
+    min-width: 70px;
+    border-radius: 6px;
+}
+.table td form { margin: 0; }
+.table td .btn-sm {
+    padding: 5px 12px;
+    font-size: 0.9rem;
+    display: block;
+    width: 100%;
+    margin-bottom: 4px;
+}
+.table td .btn-sm:last-child { margin-bottom: 0; }
+.table-bordered > :not(caption) > * > * { border-width: 1px; border-color: #EEE3D0; }
+.table-responsive { overflow-x: auto; }
+
+/* ---- Alerts ---- */
+.alert-info {
+    background-color: #FBEFE3;
+    border-color: var(--dps-orange);
+    color: var(--text-dark);
+}
+.alert-danger {
+    background-color: #a74327;
+    border-color: var(--dps-orange-dark);
+    color: var(--text-dark);
+}
+
+.table td:first-child {
+    min-width: 220px;
+}
+
+/* ---- Fade-in on page load ---- */
+body {
+    animation: fadeIn 0.35s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+

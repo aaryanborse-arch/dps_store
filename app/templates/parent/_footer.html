@@ -1,0 +1,12 @@
+<footer class="mt-5 pt-4 pb-4 text-center border-top" style="background:#f8f5f0;">
+    <p class="mb-1 text-muted">Have questions about your order?</p>
+    {% if city and (city.contact_email or city.contact_phone) %}
+    <p class="mb-0">
+        {% if city.contact_email %}📧 <a href="mailto:{{ city.contact_email }}">{{ city.contact_email }}</a>{% endif %}
+        {% if city.contact_email and city.contact_phone %} &nbsp;|&nbsp; {% endif %}
+        {% if city.contact_phone %}📞 <a href="tel:{{ city.contact_phone }}">{{ city.contact_phone }}</a>{% endif %}
+    </p>
+    {% else %}
+    <p class="mb-0 text-muted small">Please contact your school's store counter directly.</p>
+    {% endif %}
+</footer>

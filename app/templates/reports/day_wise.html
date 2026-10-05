@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sales Report</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <style>
+        .day-wise-table td, .day-wise-table th { font-size: 0.85rem; white-space: nowrap; }
+        .day-wise-data { background-color: #E7F3EA; }
+        .day-wise-total-col { background-color: #FBE0CE; font-weight: 600; }
+        .day-wise-total-row { background-color: #D9A441; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid mt-5 px-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3>{{ city_label }} - Sales Report - {% if start_date == end_date %}{{ start_date.strftime('%d-%m-%Y') }}{% else %}{{ start_date.strftime('%d-%m-%Y') }} to {{ end_date.strftime('%d-%m-%Y') }}{% endif %}</h3>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary">Dashboard</a>
+        </div>
+
+        <div class="card p-3 mb-4">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label mb-0">Single Date</label>
+                    <input type="date" name="date" class="form-control" value="{{ start_date.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-0">Custom Start</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date.strftime('%Y-%m-%d') if start_date != end_date else '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-0">Custom End</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date.strftime('%Y-%m-%d') if start_date != end_date else '' }}">
+                </div>
+                {% if all_cities is not none %}
+                <div class="col-md-2">
+                    <label class="form-label mb-0">School</label>
+                    <select name="city_id" class="form-select">
+                        <option value="all" {{ 'selected' if selected_city_id == 'all' }}>All Schools</option>
+                        {% for c in all_cities %}
+                        <option value="{{ c.id }}" {{ 'selected' if selected_city_id == c.id|string }}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-4 d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-primary">View</button>
+                    <a href="{{ url_for('reports.download_day_wise_report', date=start_date.strftime('%Y-%m-%d'), start_date=start_date.strftime('%Y-%m-%d') if start_date != end_date else '', end_date=end_date.strftime('%Y-%m-%d') if start_date != end_date else '', city_id=selected_city_id) }}" class="btn btn-success">Download PDF</a>
+                    <a href="{{ url_for('reports.download_day_wise_excel', date=start_date.strftime('%Y-%m-%d'), start_date=start_date.strftime('%Y-%m-%d') if start_date != end_date else '', end_date=end_date.strftime('%Y-%m-%d') if start_date != end_date else '', city_id=selected_city_id) }}" class="btn btn-success">Download Excel</a>
+                </div>
+            </form>
+            <p class="text-muted mb-0 mt-2">Tip: use "Single Date" for one day, or fill in Custom Start + Custom End for a range, then click View.</p>
+        </div>
+
+        <div class="mb-3">
+            <input type="text" id="dayWiseSearch" class="form-control" placeholder="Search by student name, invoice no., or class..." oninput="filterDayWiseTable()">
+        </div>
+
+        <div class="table-responsive">
+        <table class="table table-bordered bg-white day-wise-table">
+            <thead>
+                <tr class="bg-dark text-white">
+                    <th>Sr.</th><th>Date</th><th>Invoice No.</th><th>Student Name</th><th>Class</th><th>Payment Mode</th>
+                    <th>Exempt Amt</th>
+                    {% for r in data.rates %}<th>Taxable @{{ r }}%</th>{% endfor %}
+                    {% for r in data.rates %}<th>GST @{{ r }}%</th>{% endfor %}
+                    <th>Grand Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.rows %}
+                <tr class="day-wise-data">
+                    <td>{{ row.sr_no }}</td>
+                    <td>{{ row.date.strftime('%d-%m-%Y') }}</td>
+                    <td>{{ row.bill_number }}</td>
+                    <td>{{ row.student_name }}</td>
+                    <td>{{ row.student_class|roman }}</td>
+                    <td>{{ row.payment_mode }}</td>
+                    <td>{{ '%.2f'|format(row.exempt_amt) }}</td>
+                    {% for r in data.rates %}<td>{{ '%.2f'|format(row.taxable_by_rate.get(r, 0)) }}</td>{% endfor %}
+                    {% for r in data.rates %}<td>{{ '%.2f'|format(row.gst_by_rate.get(r, 0)) }}</td>{% endfor %}
+                    <td class="day-wise-total-col">₹{{ '%.2f'|format(row.grand_total) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 7 + data.rates|length * 2 + 1 }}" class="text-center text-muted">No bills on this date</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if data.rows %}
+            <tfoot>
+                <tr class="day-wise-total-row">
+                    <td colspan="6">TOTAL</td>
+                    <td>{{ '%.2f'|format(data.total_exempt) }}</td>
+                    {% for r in data.rates %}<td>{{ '%.2f'|format(data.total_taxable_by_rate.get(r, 0)) }}</td>{% endfor %}
+                    {% for r in data.rates %}<td>{{ '%.2f'|format(data.total_gst_by_rate.get(r, 0)) }}</td>{% endfor %}
+                    <td>₹{{ '%.2f'|format(data.total_grand) }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+        </div>
+    </div>
+    <script>
+    function filterDayWiseTable() {
+        const searchValue = document.getElementById('dayWiseSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('.day-wise-table tbody tr.day-wise-data');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchValue) ? '' : 'none';
+        });
+    }
+    </script>
+</body>
+</html>
