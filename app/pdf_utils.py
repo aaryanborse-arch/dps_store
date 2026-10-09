@@ -62,7 +62,8 @@ def to_roman(num_str):
     try:
         num = int(num_str)
     except (TypeError, ValueError):
-        return num_str
+        from app.class_options import CLASS_LABELS
+        return CLASS_LABELS.get(num_str, num_str)
     vals = [
         (1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'),
         (100, 'C'), (90, 'XC'), (50, 'L'), (40, 'XL'),

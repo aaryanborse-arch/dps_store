@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Choose Stream - DPS School Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-center">
+            <div class="card p-4 shadow" style="width: 420px;">
+                <h4 class="text-center mb-3">🎒 Buy Bundle</h4>
+                <div class="card p-3 mb-3" style="background:#f2f6fb;">
+                    <div class="d-flex justify-content-between"><span class="text-muted">Name</span><strong>{{ student_name }}</strong></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Class</span><strong>{{ student_class|roman }}</strong></div>
+                </div>
+                <p class="text-muted text-center mb-2">Choose the student's stream</p>
+                <form method="POST" action="{{ url_for('sales.buy_bundle_confirm') }}">
+                    <input type="hidden" name="admission_number" value="{{ admission_number }}">
+                    <input type="hidden" name="student_name" value="{{ student_name }}">
+                    <input type="hidden" name="student_class" value="{{ student_class }}">
+                    <div class="d-grid gap-2">
+                        {% for value, label in streams %}
+                        <button type="submit" name="stream" value="{{ value }}" class="btn btn-outline-primary">{{ label }}</button>
+                        {% endfor %}
+                    </div>
+                </form>
+                <a href="{{ url_for('sales.buy_bundle_lookup') }}" class="text-center mt-3 d-block">← Search a different Admission No.</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

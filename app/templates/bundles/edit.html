@@ -64,7 +64,9 @@
             <table class="table table-bordered bg-white mb-0">
                 <thead><tr><th>Product</th><th>Publisher</th><th>Subject</th><th>Qty</th><th>Price</th><th>Line Total</th><th>Compulsory in Custom Bundle (Option 2)</th><th></th></tr></thead>
                 <tbody>
-                    {% for item in bundle.items %}
+                    {% for group in contents_groups %}
+                    <tr class="table-light"><th colspan="8">{{ group.label }} <span class="badge bg-secondary">{{ group.rows|length }}</span></th></tr>
+                    {% for item in group.rows %}
                     <tr>
                         <td>{{ item.product.name if item.product else 'Deleted product' }}</td>
                         <td>{{ item.product.publisher_name if item.product else '-' }}</td>
@@ -94,6 +96,7 @@
                             </form>
                         </td>
                     </tr>
+                    {% endfor %}
                     {% else %}
                     <tr><td colspan="8" class="text-center text-muted">No items in this bundle yet</td></tr>
                     {% endfor %}

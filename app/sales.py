@@ -10,7 +10,7 @@ from app.city_utils import get_active_city_id, get_active_city
 from app.pdf_utils import generate_bill_pdf, generate_bill_pdf_three_copies
 from app.excel_utils import generate_bill_excel
 from app.pdf_utils import to_roman
-from app.class_options import CLASS_OPTIONS, normalize_class_value
+from app.class_options import CLASS_OPTIONS, normalize_class_value, needs_stream, STREAM_OPTIONS
 from app.models import CouponOrder
 from app.models import Bundle
 from app.models import Bundle, StudentRecord
@@ -523,6 +523,13 @@ def buy_bundle_confirm():
     if not admission_number or not student_name or not student_class:
         flash('Student not found — please search again')
         return redirect(url_for('sales.buy_bundle_lookup'))
+
+    if needs_stream(student_class):
+        stream = request.form.get('stream', '')
+        if stream not in dict(STREAM_OPTIONS):
+            return render_template('sales/buy_bundle_stream.html', admission_number=admission_number,
+                                    student_name=student_name, student_class=student_class, streams=STREAM_OPTIONS)
+        student_class = f'{student_class}-{stream}'
 
     bundle = Bundle.query.filter_by(city_id=city_id, applicable_class=student_class).first()
 

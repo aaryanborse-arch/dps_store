@@ -22,7 +22,9 @@
         <table class="table table-bordered bg-white">
             <thead><tr><th>Item</th><th>Subject</th><th>Amount</th></tr></thead>
             <tbody>
-                {% for item in compulsory_display %}
+                {% for section in compulsory_sections %}
+                <tr class="table-light"><th colspan="2">{{ section.title }}</th><th>₹{{ '%.2f'|format(section.total) }}</th></tr>
+                {% for item in section.rows %}
                 <tr>
                     {% if item.names is defined %}
                     <td>{{ item.names|join(', ') }}</td>
@@ -34,6 +36,7 @@
                     <td>₹{{ '%.2f'|format(item.line_total) }}</td>
                     {% endif %}
                 </tr>
+                {% endfor %}
                 {% else %}
                 <tr><td colspan="3" class="text-center text-muted">No bundle has been set up for this class yet. Please contact the store.</td></tr>
                 {% endfor %}

@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from app import db
 from app.models import City, Product, Order, OrderItem
-from app.class_options import CLASS_OPTIONS, normalize_class_value
+from app.class_options import CLASS_OPTIONS, normalize_class_value, needs_stream, STREAM_OPTIONS
 from app.models import Bundle
 from app.pdf_utils import to_roman
 from flask import jsonify
@@ -91,12 +91,37 @@ def select_class(city_id):
             return redirect(url_for('parent.select_class', city_id=city_id))
 
         session['shop_city_id'] = city_id
-        session['shop_class'] = normalize_class_value(student_class)
         session['shop_student_name'] = student_name
         session['shop_admission_number'] = admission_number
+        normalized_class = normalize_class_value(student_class)
+        if needs_stream(normalized_class):
+            session.pop('shop_class', None)
+            session['shop_class_base'] = normalized_class
+            return redirect(url_for('parent.select_stream'))
+        session['shop_class'] = normalized_class
         return redirect(url_for('parent.purchase_choice'))
 
     return render_template('parent/select_class.html', city=city)
+
+
+@parent.route('/select-stream', methods=['GET', 'POST'])
+def select_stream():
+    city_id = session.get('shop_city_id')
+    base_class = session.get('shop_class_base')
+    if not city_id or not needs_stream(base_class):
+        return redirect(url_for('parent.select_city'))
+
+    if request.method == 'POST':
+        stream = request.form.get('stream', '')
+        if stream not in dict(STREAM_OPTIONS):
+            flash('Please choose a stream')
+            return redirect(url_for('parent.select_stream'))
+        session['shop_class'] = f'{base_class}-{stream}'
+        return redirect(url_for('parent.purchase_choice'))
+
+    city = City.query.get_or_404(city_id)
+    return render_template('parent/select_stream.html', city=city, base_class=base_class,
+                            streams=STREAM_OPTIONS, student_name=session.get('shop_student_name', ''))
 
 @parent.route('/purchase-choice')
 def purchase_choice():
@@ -401,24 +426,51 @@ def bundle_view():
                 compulsory_items.append(entry)
                 compulsory_total += line_total
 
-    grouped_compulsory = {}
-    order = []
-    singles = []
+    # split compulsory items into sections (Textbooks, Common Items, Stationary, Notebook) for parents
+    def section_of(product):
+        if product.applicable_class == student_class:
+            return 'Textbooks'
+        if product.applicable_class is None:
+            return 'Common Items'
+        if product.applicable_class in ('extra', 'stationary'):
+            return 'Stationary'
+        if product.applicable_class == 'notebook':
+            return 'Notebook'
+        return 'Other Items'
+
+    section_names = ['Textbooks', 'Common Items', 'Stationary', 'Notebook', 'Other Items']
+    section_entries = {name: [] for name in section_names}
     for entry in compulsory_items:
-        product = entry['product']
-        if product.subject:
-            if product.subject not in grouped_compulsory:
-                grouped_compulsory[product.subject] = {'subject': product.subject, 'names': [], 'line_total': 0.0}
-                order.append(product.subject)
-            grouped_compulsory[product.subject]['names'].append(product.name)
-            grouped_compulsory[product.subject]['line_total'] += entry['line_total']
-        else:
-            singles.append(entry)
-    compulsory_display = [grouped_compulsory[s] for s in order] + singles
+        section_entries[section_of(entry['product'])].append(entry)
+
+    compulsory_sections = []
+    for name in section_names:
+        grouped_compulsory = {}
+        order = []
+        singles = []
+        for entry in sorted(section_entries[name], key=lambda e: e['product'].name.lower()):
+            product = entry['product']
+            if product.subject:
+                if product.subject not in grouped_compulsory:
+                    grouped_compulsory[product.subject] = {'subject': product.subject, 'names': [], 'line_total': 0.0}
+                    order.append(product.subject)
+                grouped_compulsory[product.subject]['names'].append(product.name)
+                grouped_compulsory[product.subject]['line_total'] += entry['line_total']
+            else:
+                singles.append(entry)
+        rows = [grouped_compulsory[s] for s in order] + singles
+        if rows:
+            compulsory_sections.append({
+                'title': name,
+                'rows': rows,
+                'total': round(sum(e['line_total'] for e in section_entries[name]), 2),
+            })
+    compulsory_display = [row for section in compulsory_sections for row in section['rows']]
 
     return render_template('parent/bundle_view.html', city=city, student_class=student_class,
                             student_class_label=to_roman(student_class),
-                            compulsory_display=compulsory_display, elective_items=elective_items,
+                            compulsory_display=compulsory_display, compulsory_sections=compulsory_sections,
+                            elective_items=elective_items,
                             compulsory_total=round(compulsory_total, 2))
 
 @parent.route('/bundle/checkout-start', methods=['POST'])

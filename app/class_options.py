@@ -21,7 +21,14 @@ def get_class_label(value):
     except Exception:
         return value
 
-_ROMAN_TO_NUM = {'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5, 'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10}
+_ROMAN_TO_NUM = {'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5, 'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10, 'xi': 11, 'xii': 12}
+
+# Classes XI and XII are split by stream; the parent / staff picks the stream after the admission number lookup
+STREAM_OPTIONS = [('math', 'Math'), ('commerce', 'Commerce'), ('bio', 'Bio'), ('humanities', 'Humanities')]
+
+
+def needs_stream(class_value):
+    return class_value in ('11', '12')
 
 
 def normalize_class_value(raw):

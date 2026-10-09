@@ -91,9 +91,34 @@ def bundle_edit(class_value):
     bundle_items_map = {i.product_id: i for i in bundle.items}
     compulsory_ids = {i.product_id for i in bundle.items if i.product and class_value in compulsory_classes(i.product)}
 
+    # group 'Current Bundle Contents' by section so staff can scan it easily
+    deleted_label = 'Deleted Products — please remove these'
+    contents_labels = [f'Class {to_roman(class_value)} Textbooks', 'Common Items', 'Stationary', 'Notebook', 'Other', deleted_label]
+    contents_buckets = {lbl: [] for lbl in contents_labels}
+    for i in bundle.items:
+        p = i.product
+        if p is None:
+            lbl = deleted_label
+        elif p.applicable_class == class_value:
+            lbl = contents_labels[0]
+        elif p.applicable_class is None:
+            lbl = 'Common Items'
+        elif p.applicable_class in ('extra', 'stationary'):
+            lbl = 'Stationary'
+        elif p.applicable_class == 'notebook':
+            lbl = 'Notebook'
+        else:
+            lbl = 'Other'
+        contents_buckets[lbl].append(i)
+    contents_groups = [
+        {'label': lbl, 'rows': sorted(contents_buckets[lbl], key=lambda i: i.product.name.lower() if i.product else '')}
+        for lbl in contents_labels if contents_buckets[lbl]
+    ]
+
     return render_template('bundles/edit.html', bundle=bundle, class_value=class_value,
                             label=to_roman(class_value), grouped_products=grouped_products,
-                            bundle_items_map=bundle_items_map, compulsory_ids=compulsory_ids)
+                            bundle_items_map=bundle_items_map, compulsory_ids=compulsory_ids,
+                            contents_groups=contents_groups)
 
 
 @bundles_bp.route('/item/<int:item_id>/remove', methods=['POST'])
