@@ -76,7 +76,9 @@
                 </td>
                 <td>
                     {% if r.status != 'returned' %}
-                    <form method="POST" action="{{ url_for('sales.return_issuance', issuance_id=r.id) }}">
+                    <form method="POST" action="{{ url_for('sales.return_issuance', issuance_id=r.id) }}"
+                          data-msg="Mark this item as returned?&#10;&#10;Teacher: {{ r.teacher_display_name() }}&#10;Item: {{ r.product_name }}&#10;Quantity: {{ r.quantity }}&#10;&#10;Stock will be added back. This cannot be undone."
+                          onsubmit="return confirm(this.dataset.msg);">
                         <button type="submit" class="btn btn-sm btn-outline-success">Mark Returned</button>
                     </form>
                     {% else %}
