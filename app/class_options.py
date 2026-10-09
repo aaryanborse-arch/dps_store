@@ -30,10 +30,12 @@ def normalize_class_value(raw):
     text = str(raw).strip()
     if not text:
         return None
-    lower = text.lower().replace('.', '').strip()
+    lower = text.lower().strip().rstrip('.').strip()
+    if lower.replace('.', '', 1).isdigit() and lower.endswith('.0'):
+        lower = lower[:-2]  # Excel sometimes gives 3.0 instead of 3
 
     direct_map = {
-        'nursery': 'Nursery',
+        'nursery': 'Nursery', 'nur': 'Nursery', 'n': 'Nursery',
         'lkg': 'Pre-Prep', 'pre-prep': 'Pre-Prep', 'preprep': 'Pre-Prep',
         'ukg': 'Prep', 'prep': 'Prep',
     }

@@ -314,7 +314,7 @@ def stock_correction():
     tagged_products = []
     for p in raw_products:
         key = class_value_to_key(p.applicable_class)
-        if key in ('notebook', 'extra'):
+        if key == 'extra':
             key = 'stationary'
         p.display_label = section_label(key)
         tagged_products.append((sort_key(key), p.name, p))

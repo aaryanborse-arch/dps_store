@@ -22,51 +22,80 @@
             {% endif %}
         {% endwith %}
 
+        {% if blocked %}
+        <div class="alert alert-warning">
+            Some compulsory items for this class are out of stock right now: <strong>{{ blocked|join(', ') }}</strong>.
+            Online ordering for this option will open again once they are restocked. Please contact the store if you need help.
+        </div>
+        {% endif %}
+
         <form method="POST">
             <div class="card p-3 mb-4">
-                <h5>Textbooks — Compulsory</h5>
-                <p class="text-muted small mb-3">These are automatically included for Class {{ student_class|roman }} and cannot be removed individually.</p>
+                <h5>Compulsory Items</h5>
+                <p class="text-muted small mb-3">These are required for Class {{ student_class|roman }} and are included automatically.</p>
                 <div class="table-responsive">
                 <table class="table table-bordered bg-white mb-0">
-                    <thead><tr><th>Item</th><th>Price</th><th>Stock</th></tr></thead>
+                    <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
                     <tbody>
-                        {% for p in textbooks %}
+                        {% for e in compulsory %}
                         <tr>
-                            <td>{{ p.name }}</td>
-                            <td>₹{{ p.price }}</td>
-                            <td>{{ p.stock_quantity }}</td>
+                            <td>{{ e.product.name }}</td>
+                            <td>{{ e.quantity }}</td>
+                            <td>₹{{ e.product.price }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="3" class="text-center text-muted">No textbooks set up for this class yet</td></tr>
+                        <tr><td colspan="3" class="text-center text-muted">No compulsory items set up for this class yet</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 </div>
             </div>
 
+            {% if electives %}
             <div class="card p-3 mb-4">
-                <h5>Common Items & Stationary — Optional</h5>
+                <h5>Optional Subjects — tick the one(s) that apply to your child</h5>
+                <div class="table-responsive">
+                <table class="table table-bordered bg-white mb-0">
+                    <thead><tr><th></th><th>Item</th><th>Subject</th><th>Qty</th><th>Price</th></tr></thead>
+                    <tbody>
+                        {% for e in electives %}
+                        <tr>
+                            <td><input type="checkbox" name="elective_product_id" value="{{ e.product.id }}" {{ 'checked' if cart.get(e.product.id|string) }} {{ 'disabled' if not e.in_stock }}></td>
+                            <td>{{ e.product.name }}{% if not e.in_stock %} <span class="badge bg-danger">Out of stock</span>{% endif %}</td>
+                            <td>{{ e.product.subject or '-' }}</td>
+                            <td>{{ e.quantity }}</td>
+                            <td>₹{{ e.product.price }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card p-3 mb-4">
+                <h5>Other Items — Optional</h5>
                 <p class="text-muted small mb-3">Tick anything your child needs. Everything left unticked won't be added.</p>
                 <div class="table-responsive">
                 <table class="table table-bordered bg-white mb-0">
-                    <thead><tr><th></th><th>Item</th><th>Price</th><th>Stock</th></tr></thead>
+                    <thead><tr><th></th><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
                     <tbody>
-                        {% for p in optional_items %}
+                        {% for e in optional_items %}
                         <tr>
-                            <td><input type="checkbox" name="optional_product_id" value="{{ p.id }}" {{ 'checked' if cart.get(p.id|string) }}></td>
-                            <td>{{ p.name }}</td>
-                            <td>₹{{ p.price }}</td>
-                            <td>{{ p.stock_quantity }}</td>
+                            <td><input type="checkbox" name="optional_product_id" value="{{ e.product.id }}" {{ 'checked' if cart.get(e.product.id|string) }} {{ 'disabled' if not e.in_stock }}></td>
+                            <td>{{ e.product.name }}{% if not e.in_stock %} <span class="badge bg-danger">Out of stock</span>{% endif %}</td>
+                            <td>{{ e.quantity }}</td>
+                            <td>₹{{ e.product.price }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="text-center text-muted">No stationary/common items available right now</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted">No optional items for this class</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-lg">Update Cart</button>
+            <button type="submit" class="btn btn-primary btn-lg" {{ 'disabled' if blocked }}>Update Cart</button>
         </form>
     </div>
     {% include 'parent/_footer.html' %}

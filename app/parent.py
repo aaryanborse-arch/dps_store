@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from app import db
 from app.models import City, Product, Order, OrderItem
-from app.class_options import CLASS_OPTIONS
+from app.class_options import CLASS_OPTIONS, normalize_class_value
 from app.models import Bundle
 from app.pdf_utils import to_roman
 from flask import jsonify
@@ -15,6 +15,7 @@ import base64
 import json
 import requests
 from app.models import PendingJodoOrder
+from app.bundle_rules import get_custom_shop_items
 
 parent = Blueprint('parent', __name__, url_prefix='/shop')
 JODO_LINK = "https://pay.jodo.in/pages/ddHuKHxLyAfQP7SY"
@@ -90,7 +91,7 @@ def select_class(city_id):
             return redirect(url_for('parent.select_class', city_id=city_id))
 
         session['shop_city_id'] = city_id
-        session['shop_class'] = student_class
+        session['shop_class'] = normalize_class_value(student_class)
         session['shop_student_name'] = student_name
         session['shop_admission_number'] = admission_number
         return redirect(url_for('parent.purchase_choice'))
@@ -114,41 +115,51 @@ def browse():
         return redirect(url_for('parent.select_city'))
 
     city = City.query.get_or_404(city_id)
-
-    products = Product.query.filter(
-        Product.city_id == city_id,
-        Product.is_active == True,
-        Product.stock_quantity > 0,
-        db.or_(
-            Product.applicable_class == student_class,
-            Product.applicable_class.is_(None),
-            Product.applicable_class.in_(['notebook', 'extra', 'stationary'])
-        )
-    ).order_by(Product.product_type, Product.name).all()
-
-    textbooks = [p for p in products if p.applicable_class == student_class]
-    optional_items = [p for p in products if p.applicable_class is None or p.applicable_class in ('notebook', 'extra', 'stationary')]
+    shop = get_custom_shop_items(city_id, student_class)
+    blocked = [e['product'].name for e in shop['compulsory'] if not e['in_stock']]
 
     if request.method == 'POST':
-        selected_ids = set(int(i) for i in request.form.getlist('optional_product_id'))
+        if blocked:
+            flash('Sorry, these compulsory items are out of stock right now: ' + ', '.join(blocked) + '. Please try again later or contact the store.')
+            return redirect(url_for('parent.browse'))
 
-        cart = session.get('cart', {})
-        for p in textbooks:
-            cart[str(p.id)] = 1
+        def ids_from(field):
+            out = set()
+            for v in request.form.getlist(field):
+                try:
+                    out.add(int(v))
+                except ValueError:
+                    pass
+            return out
 
-        for p in optional_items:
-            if p.id in selected_ids:
-                cart[str(p.id)] = 1
-            else:
-                cart.pop(str(p.id), None)
+        chosen_electives = ids_from('elective_product_id')
+        chosen_optional = ids_from('optional_product_id')
+
+        cart = {}
+        for e in shop['compulsory']:
+            cart[str(e['product'].id)] = e['quantity']
+        for group, chosen in ((shop['electives'], chosen_electives), (shop['optional'], chosen_optional)):
+            for e in group:
+                if e['product'].id in chosen:
+                    if not e['in_stock']:
+                        flash(f'"{e["product"].name}" is out of stock right now — please untick it')
+                        return redirect(url_for('parent.browse'))
+                    cart[str(e['product'].id)] = e['quantity']
+
+        if not cart:
+            flash('Please select at least one item')
+            return redirect(url_for('parent.browse'))
 
         session['cart'] = cart
+        session['checkout_source'] = 'custom'
+        session['locked_ids'] = [e['product'].id for e in shop['compulsory']]
         flash('Cart updated')
         return redirect(url_for('parent.view_cart'))
 
     cart = session.get('cart', {})
     return render_template('parent/browse.html', city=city, student_class=student_class,
-                            textbooks=textbooks, optional_items=optional_items, cart=cart)
+                            compulsory=shop['compulsory'], electives=shop['electives'],
+                            optional_items=shop['optional'], blocked=blocked, cart=cart)
 
 @parent.route('/cart/add/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
@@ -174,11 +185,15 @@ def view_cart():
             subtotal = product.price * qty
             items.append({'product': product, 'quantity': qty, 'subtotal': subtotal})
             total += subtotal
-    return render_template('parent/cart.html', items=items, total=total)
+    locked_ids = set(session.get('locked_ids', [])) if session.get('checkout_source') == 'custom' else set()
+    return render_template('parent/cart.html', items=items, total=total, locked_ids=locked_ids)
 
 
 @parent.route('/cart/remove/<int:product_id>', methods=['POST'])
 def remove_from_cart(product_id):
+    if session.get('checkout_source') == 'custom' and product_id in set(session.get('locked_ids', [])):
+        flash('This item is compulsory for your class and cannot be removed')
+        return redirect(url_for('parent.view_cart'))
     cart = session.get('cart', {})
     cart.pop(str(product_id), None)
     session['cart'] = cart
@@ -567,6 +582,13 @@ def direct_jodo_checkout():
     if not all([student_name, admission_number, student_class, city_id]):
         flash('Session expired — please start again')
         return redirect(url_for('parent.select_city'))
+
+    if session.get('checkout_source') == 'custom':
+        shop = get_custom_shop_items(city_id, student_class)
+        for e in shop['compulsory']:
+            if cart.get(str(e['product'].id), 0) < e['quantity']:
+                flash(f'"{e["product"].name}" is compulsory for this class — please review your selection')
+                return redirect(url_for('parent.browse'))
 
     if request.method == 'GET':
         return render_template('parent/quick_checkout_details.html')

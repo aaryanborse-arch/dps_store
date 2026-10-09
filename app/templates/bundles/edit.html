@@ -62,7 +62,7 @@
             <h5>Current Bundle Contents</h5>
             <div class="table-responsive">
             <table class="table table-bordered bg-white mb-0">
-                <thead><tr><th>Product</th><th>Publisher</th><th>Subject</th><th>Qty</th><th>Price</th><th>Line Total</th><th></th></tr></thead>
+                <thead><tr><th>Product</th><th>Publisher</th><th>Subject</th><th>Qty</th><th>Price</th><th>Line Total</th><th>Compulsory in Custom Bundle (Option 2)</th><th></th></tr></thead>
                 <tbody>
                     {% for item in bundle.items %}
                     <tr>
@@ -73,13 +73,29 @@
                         <td>₹{{ item.product.price if item.product else 0 }}</td>
                         <td>₹{{ '%.2f'|format((item.product.price * item.quantity) if item.product else 0) }}</td>
                         <td>
+                            {% if not item.product %}
+                                -
+                            {% elif item.product.is_elective %}
+                                <span class="badge bg-warning text-dark">Elective — parent chooses</span>
+                            {% elif item.product.applicable_class == class_value %}
+                                <span class="badge bg-secondary">Always (class textbook)</span>
+                            {% else %}
+                                <form method="POST" action="{{ url_for('bundles_bp.toggle_bundle_item_compulsory', item_id=item.id) }}">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" name="compulsory" value="on" id="comp_{{ item.id }}" onchange="toggleCompulsory(this)" {{ 'checked' if item.product_id in compulsory_ids }}>
+                                        <label class="form-check-label small" for="comp_{{ item.id }}">{{ 'Compulsory' if item.product_id in compulsory_ids else 'Optional' }}</label>
+                                    </div>
+                                </form>
+                            {% endif %}
+                        </td>
+                        <td>
                             <form method="POST" action="{{ url_for('bundles_bp.remove_bundle_item', item_id=item.id) }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
                             </form>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" class="text-center text-muted">No items in this bundle yet</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted">No items in this bundle yet</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -89,6 +105,30 @@
     </div>
 
     <script>
+    function toggleCompulsory(cb) {
+        const form = cb.form;
+        const label = form.querySelector('label');
+        const data = new FormData();
+        if (cb.checked) data.append('compulsory', 'on');
+        cb.disabled = true;
+        fetch(form.action, { method: 'POST', body: data, headers: { 'X-Requested-With': 'fetch' } })
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(d => { label.textContent = d.compulsory ? 'Compulsory' : 'Optional'; })
+            .catch(() => {
+                cb.checked = !cb.checked;
+                alert('Could not save — please check your connection and try again.');
+            })
+            .finally(() => { cb.disabled = false; });
+    }
+
+    // keep the page where it was after Add / Update / Remove (the page reloads after each one)
+    document.addEventListener('submit', function () {
+        try {
+            sessionStorage.setItem('bundleScrollY', String(window.scrollY));
+            sessionStorage.setItem('bundleSearch', document.getElementById('bundleProductSearch').value);
+        } catch (e) {}
+    });
+
     function filterBundleProducts() {
         const searchValue = document.getElementById('bundleProductSearch').value.toLowerCase();
         const rows = document.querySelectorAll('.bundle-available-table tbody tr');
@@ -97,6 +137,18 @@
             row.style.display = text.includes(searchValue) ? '' : 'none';
         });
     }
+
+    try {
+        const savedY = sessionStorage.getItem('bundleScrollY');
+        const savedSearch = sessionStorage.getItem('bundleSearch');
+        sessionStorage.removeItem('bundleScrollY');
+        sessionStorage.removeItem('bundleSearch');
+        if (savedSearch) {
+            document.getElementById('bundleProductSearch').value = savedSearch;
+            filterBundleProducts();
+        }
+        if (savedY !== null) window.scrollTo(0, parseInt(savedY, 10));
+    } catch (e) {}
     </script>
 </body>
 </html>

@@ -485,13 +485,13 @@ def manual_record():
         return (0, int(k)) if k.isdigit() else (1, k)
 
     products_sorted = sorted(products, key=lambda p: (
-        sort_key(class_value_to_key(p.applicable_class) if class_value_to_key(p.applicable_class) not in ('notebook', 'extra') else 'stationary'),
+        sort_key(class_value_to_key(p.applicable_class) if class_value_to_key(p.applicable_class) != 'extra' else 'stationary'),
         p.name
     ))
 
     for p in products_sorted:
         key = class_value_to_key(p.applicable_class)
-        if key in ('notebook', 'extra'):
+        if key == 'extra':
             key = 'stationary'
         p.display_label = section_label(key)
 

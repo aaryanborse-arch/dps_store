@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models import Bundle, BundleItem, Product
@@ -6,6 +6,7 @@ from app.inventory import store_staff_required
 from app.city_utils import get_active_city_id
 from app.class_options import CLASS_OPTIONS
 from app.pdf_utils import to_roman
+from app.bundle_rules import compulsory_classes, set_compulsory_for_class
 
 bundles_bp = Blueprint('bundles_bp', __name__, url_prefix='/inventory/bundles')
 
@@ -88,10 +89,11 @@ def bundle_edit(class_value):
     ]
 
     bundle_items_map = {i.product_id: i for i in bundle.items}
+    compulsory_ids = {i.product_id for i in bundle.items if i.product and class_value in compulsory_classes(i.product)}
 
     return render_template('bundles/edit.html', bundle=bundle, class_value=class_value,
                             label=to_roman(class_value), grouped_products=grouped_products,
-                            bundle_items_map=bundle_items_map)
+                            bundle_items_map=bundle_items_map, compulsory_ids=compulsory_ids)
 
 
 @bundles_bp.route('/item/<int:item_id>/remove', methods=['POST'])
@@ -104,7 +106,31 @@ def remove_bundle_item(item_id):
         flash('Access denied')
         return redirect(url_for('bundles_bp.bundle_list'))
     class_value = bundle.applicable_class
+    if item.product:
+        set_compulsory_for_class(item.product, class_value, False)
     db.session.delete(item)
     db.session.commit()
     flash('Item removed from bundle')
     return redirect(url_for('bundles_bp.bundle_edit', class_value=class_value))
+
+
+@bundles_bp.route('/item/<int:item_id>/compulsory', methods=['POST'])
+@login_required
+@store_staff_required
+def toggle_bundle_item_compulsory(item_id):
+    item = BundleItem.query.get_or_404(item_id)
+    bundle = item.bundle
+    if bundle.city_id != get_active_city_id():
+        flash('Access denied')
+        return redirect(url_for('bundles_bp.bundle_list'))
+    if not item.product:
+        flash('This product no longer exists')
+        return redirect(url_for('bundles_bp.bundle_edit', class_value=bundle.applicable_class))
+
+    is_compulsory = request.form.get('compulsory') == 'on'
+    set_compulsory_for_class(item.product, bundle.applicable_class, is_compulsory)
+    db.session.commit()
+    if request.headers.get('X-Requested-With') == 'fetch':
+        return jsonify({'ok': True, 'compulsory': is_compulsory})
+    flash(f'"{item.product.name}" is now {"compulsory" if is_compulsory else "optional"} in the custom bundle (Option 2)')
+    return redirect(url_for('bundles_bp.bundle_edit', class_value=bundle.applicable_class))

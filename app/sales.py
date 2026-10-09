@@ -10,10 +10,9 @@ from app.city_utils import get_active_city_id, get_active_city
 from app.pdf_utils import generate_bill_pdf, generate_bill_pdf_three_copies
 from app.excel_utils import generate_bill_excel
 from app.pdf_utils import to_roman
-from app.class_options import CLASS_OPTIONS
+from app.class_options import CLASS_OPTIONS, normalize_class_value
 from app.models import CouponOrder
 from app.models import Bundle
-from app.class_options import CLASS_OPTIONS
 from app.models import Bundle, StudentRecord
 from app.parent import normalize_admission_text
 from app.activity_log import log_activity
@@ -519,7 +518,7 @@ def buy_bundle_confirm():
     city_id = get_active_city_id()
     admission_number = request.form.get('admission_number', '').strip()
     student_name = request.form.get('student_name', '').strip()
-    student_class = request.form.get('student_class', '').strip()
+    student_class = normalize_class_value(request.form.get('student_class', '')) or ''
 
     if not admission_number or not student_name or not student_class:
         flash('Student not found — please search again')
@@ -559,7 +558,7 @@ def buy_bundle_generate():
 
     admission_number = request.form.get('admission_number', '').strip()
     student_name = request.form.get('student_name', '').strip()
-    student_class = request.form.get('student_class', '').strip()
+    student_class = normalize_class_value(request.form.get('student_class', '')) or ''
     buyer_name = request.form.get('buyer_name', '').strip()
     buyer_phone = request.form.get('buyer_phone', '').strip()
     payment_method = request.form.get('payment_method', '').strip()
