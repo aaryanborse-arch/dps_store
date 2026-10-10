@@ -19,10 +19,29 @@
             {% endif %}
         {% endwith %}
 
+        <div class="d-flex gap-2 mb-3">
+            {% for m_value, m_label in [('whole', '🎒 Whole Bundle'), ('custom', '📚 Custom Bundle (textbooks compulsory, choose the rest)')] %}
+            <form method="POST" action="{{ url_for('sales.buy_bundle_confirm') }}">
+                <input type="hidden" name="admission_number" value="{{ admission_number }}">
+                <input type="hidden" name="student_name" value="{{ student_name }}">
+                <input type="hidden" name="student_class" value="{{ student_class }}">
+                <input type="hidden" name="mode" value="{{ m_value }}">
+                <button type="submit" class="btn {{ 'btn-primary' if mode == m_value else 'btn-outline-primary' }}">{{ m_label }}</button>
+            </form>
+            {% endfor %}
+        </div>
+
+        {% if blocked %}
+        <div class="alert alert-warning">Compulsory item(s) out of stock: <strong>{{ blocked|join(', ') }}</strong>. Restock before billing the custom bundle.</div>
+        {% endif %}
+
         <form method="POST" action="{{ url_for('sales.buy_bundle_generate') }}">
             <input type="hidden" name="admission_number" value="{{ admission_number }}">
             <input type="hidden" name="student_name" value="{{ student_name }}">
             <input type="hidden" name="student_class" value="{{ student_class }}">
+            <input type="hidden" name="mode" value="{{ mode }}">
+
+            {% if mode == 'custom' %}<h5>Compulsory Items</h5>{% endif %}
 
             <div class="table-responsive mb-3">
             <table class="table table-bordered bg-white">
@@ -33,7 +52,7 @@
                         <td>{{ item.product.name }}</td>
                         <td>{{ item.product.publisher_name or '-' }}</td>
                         <td>{{ item.product.subject or '-' }}</td>
-                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.quantity }}{% if mode == 'custom' and not item.in_stock %} <span class="badge bg-danger">Out of stock</span>{% endif %}</td>
                         <td>₹{{ '%.2f'|format(item.line_total) }}</td>
                     </tr>
                     {% else %}
@@ -44,20 +63,51 @@
             </div>
 
             {% if elective_items %}
-            <div class="card p-3 mb-3">
-                <h5>Optional Subjects — tick which apply</h5>
-                {% for item in elective_items %}
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input elective-cb" name="elective_product_id" value="{{ item.product.id }}" data-amt="{{ item.line_total }}" id="s_elective_{{ item.product.id }}" onchange="updateBundleTotal()">
-                    <label class="form-check-label" for="s_elective_{{ item.product.id }}">
-                        {{ item.product.subject or item.product.name }} — {{ item.product.name }} (₹{{ '%.2f'|format(item.line_total) }})
-                    </label>
-                </div>
-                {% endfor %}
+            <h5>Optional Subjects — tick which apply</h5>
+            <div class="table-responsive mb-3">
+            <table class="table table-bordered bg-white">
+                <thead><tr><th style="width:40px"></th><th>Item</th><th>Publisher</th><th>Subject</th><th>Qty</th><th>Amount</th></tr></thead>
+                <tbody>
+                    {% for item in elective_items %}
+                    <tr>
+                        <td class="text-center"><input type="checkbox" class="form-check-input elective-cb" name="elective_product_id" value="{{ item.product.id }}" data-amt="{{ item.line_total }}" id="s_elective_{{ item.product.id }}" onchange="updateBundleTotal()"></td>
+                        <td><label class="w-100" for="s_elective_{{ item.product.id }}" style="cursor:pointer">{{ item.product.name }}</label></td>
+                        <td>{{ item.product.publisher_name or '-' }}</td>
+                        <td>{{ item.product.subject or '-' }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₹{{ '%.2f'|format(item.line_total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
             </div>
             {% endif %}
 
-            {% if compulsory_items or elective_items %}
+            {% if optional_items %}
+            <h5>Other Items — tick what the buyer wants</h5>
+            <div class="table-responsive mb-3">
+            <table class="table table-bordered bg-white">
+                <thead><tr><th style="width:40px"></th><th>Item</th><th>Publisher</th><th>Subject</th><th>Qty</th><th>Amount</th></tr></thead>
+                <tbody>
+                    {% for group in optional_groups %}
+                    <tr class="table-light"><th colspan="6">{{ group.title }}</th></tr>
+                    {% for item in group.rows %}
+                    <tr class="{{ '' if item.in_stock else 'text-muted' }}">
+                        <td class="text-center"><input type="checkbox" class="form-check-input optional-cb" name="optional_product_id" value="{{ item.product.id }}" data-amt="{{ item.line_total }}" id="s_optional_{{ item.product.id }}" onchange="updateBundleTotal()" {{ 'disabled' if not item.in_stock }}></td>
+                        <td><label class="w-100" for="s_optional_{{ item.product.id }}" style="cursor:pointer">{{ item.product.name }}{% if not item.in_stock %} <span class="badge bg-danger">Out of stock</span>{% endif %}</label></td>
+                        <td>{{ item.product.publisher_name or '-' }}</td>
+                        <td>{{ item.product.subject or '-' }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₹{{ '%.2f'|format(item.line_total) }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% endif %}
+
+            {% if compulsory_items or elective_items or optional_items %}
             <h4 class="text-end" id="bundleTotalDisplay">Total: ₹{{ '%.2f'|format(compulsory_total) }}</h4>
 
             <div class="card p-4">
@@ -78,7 +128,7 @@
                         </select>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-success btn-lg mt-3">Generate Bill</button>
+                <button type="submit" class="btn btn-success btn-lg mt-3" {{ 'disabled' if blocked }}>Generate Bill</button>
             </div>
             {% endif %}
         </form>
@@ -88,7 +138,7 @@
     const baseTotal = {{ compulsory_total }};
     function updateBundleTotal() {
         let total = baseTotal;
-        document.querySelectorAll('.elective-cb:checked').forEach(cb => {
+        document.querySelectorAll('.elective-cb:checked, .optional-cb:checked').forEach(cb => {
             total += parseFloat(cb.dataset.amt);
         });
         document.getElementById('bundleTotalDisplay').textContent = 'Total: ₹' + total.toFixed(2);

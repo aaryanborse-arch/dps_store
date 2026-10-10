@@ -15,6 +15,7 @@ from app.models import CouponOrder
 from app.models import Bundle
 from app.models import Bundle, StudentRecord
 from app.parent import normalize_admission_text
+from app.bundle_rules import get_custom_shop_items, group_by_section
 from app.activity_log import log_activity
 from sqlalchemy import text
 
@@ -531,6 +532,27 @@ def buy_bundle_confirm():
                                     student_name=student_name, student_class=student_class, streams=STREAM_OPTIONS)
         student_class = f'{student_class}-{stream}'
 
+    mode = 'custom' if request.form.get('mode') == 'custom' else 'whole'
+
+    def add_line_total(entry):
+        product = entry['product']
+        gst_amount = 0.0 if product.is_gst_exempt else round(product.price * entry['quantity'] * product.gst_percent / 100, 2)
+        entry['line_total'] = product.price * entry['quantity'] + gst_amount
+        return entry
+
+    if mode == 'custom':
+        shop = get_custom_shop_items(city_id, student_class)
+        compulsory_items = [add_line_total(e) for e in shop['compulsory']]
+        elective_items = [add_line_total(e) for e in shop['electives']]
+        optional_items = [add_line_total(e) for e in shop['optional']]
+        blocked = [e['product'].name for e in compulsory_items if not e['in_stock']]
+        return render_template('sales/buy_bundle_confirm.html', admission_number=admission_number,
+                                student_name=student_name, student_class=student_class, mode=mode,
+                                compulsory_items=compulsory_items, elective_items=elective_items,
+                                optional_items=optional_items, optional_groups=group_by_section(optional_items, student_class),
+                                blocked=blocked,
+                                compulsory_total=round(sum(e['line_total'] for e in compulsory_items), 2))
+
     bundle = Bundle.query.filter_by(city_id=city_id, applicable_class=student_class).first()
 
     compulsory_items = []
@@ -552,8 +574,9 @@ def buy_bundle_confirm():
                 compulsory_total += line_total
 
     return render_template('sales/buy_bundle_confirm.html', admission_number=admission_number,
-                            student_name=student_name, student_class=student_class,
+                            student_name=student_name, student_class=student_class, mode=mode,
                             compulsory_items=compulsory_items, elective_items=elective_items,
+                            optional_items=[], optional_groups=[], blocked=[],
                             compulsory_total=round(compulsory_total, 2))
 
 
@@ -569,28 +592,52 @@ def buy_bundle_generate():
     buyer_name = request.form.get('buyer_name', '').strip()
     buyer_phone = request.form.get('buyer_phone', '').strip()
     payment_method = request.form.get('payment_method', '').strip()
-    selected_elective_ids = set(int(i) for i in request.form.getlist('elective_product_id'))
+    mode = 'custom' if request.form.get('mode') == 'custom' else 'whole'
+
+    def ids_from(field):
+        out = set()
+        for v in request.form.getlist(field):
+            try:
+                out.add(int(v))
+            except ValueError:
+                pass
+        return out
+
+    selected_elective_ids = ids_from('elective_product_id')
+    selected_optional_ids = ids_from('optional_product_id')
 
     if not all([admission_number, student_name, student_class, buyer_name, buyer_phone, payment_method]):
         flash('All fields are required')
         return redirect(url_for('sales.buy_bundle_lookup'))
 
-    bundle = Bundle.query.filter_by(city_id=city_id, applicable_class=student_class).first()
-    if not bundle or not bundle.items:
-        flash('No bundle found for this class')
-        return redirect(url_for('sales.buy_bundle_lookup'))
-
     products_map = {}
-    for bi in bundle.items:
-        product = bi.product
-        if not product or product.city_id != city_id or not product.is_active:
-            continue
-        if product.is_elective and product.id not in selected_elective_ids:
-            continue
-        if product.stock_quantity < bi.quantity:
-            flash(f'Not enough stock for "{product.name}" (available: {product.stock_quantity})')
+    if mode == 'custom':
+        shop = get_custom_shop_items(city_id, student_class)
+        for group, chosen in ((shop['compulsory'], None), (shop['electives'], selected_elective_ids), (shop['optional'], selected_optional_ids)):
+            for e in group:
+                product = e['product']
+                if chosen is not None and product.id not in chosen:
+                    continue
+                if product.stock_quantity < e['quantity']:
+                    flash(f'Not enough stock for "{product.name}" (available: {product.stock_quantity})')
+                    return redirect(url_for('sales.buy_bundle_lookup'))
+                products_map[product.id] = (product, e['quantity'])
+    else:
+        bundle = Bundle.query.filter_by(city_id=city_id, applicable_class=student_class).first()
+        if not bundle or not bundle.items:
+            flash('No bundle found for this class')
             return redirect(url_for('sales.buy_bundle_lookup'))
-        products_map[bi.product_id] = (product, bi.quantity)
+
+        for bi in bundle.items:
+            product = bi.product
+            if not product or product.city_id != city_id or not product.is_active:
+                continue
+            if product.is_elective and product.id not in selected_elective_ids:
+                continue
+            if product.stock_quantity < bi.quantity:
+                flash(f'Not enough stock for "{product.name}" (available: {product.stock_quantity})')
+                return redirect(url_for('sales.buy_bundle_lookup'))
+            products_map[bi.product_id] = (product, bi.quantity)
 
     if not products_map:
         flash('No valid items in this bundle')
@@ -641,5 +688,5 @@ def buy_bundle_generate():
     new_bill.total_amount = total
     db.session.commit()
 
-    flash(f'Bundle bill {new_bill.bill_number} generated successfully')
+    flash(f'{"Custom bundle" if mode == "custom" else "Bundle"} bill {new_bill.bill_number} generated successfully')
     return redirect(url_for('sales.view_bill', bill_id=new_bill.id))

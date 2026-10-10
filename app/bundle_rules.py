@@ -59,3 +59,29 @@ def get_custom_shop_items(city_id, student_class):
             result['optional'].append(entry)
 
     return result
+
+
+SECTION_ORDER = ['Textbooks', 'Common Items', 'Stationary', 'Notebook', 'Other Items']
+
+
+def section_title(product, student_class):
+    if product.applicable_class == student_class:
+        return 'Textbooks'
+    if product.applicable_class is None:
+        return 'Common Items'
+    if product.applicable_class in ('extra', 'stationary'):
+        return 'Stationary'
+    if product.applicable_class == 'notebook':
+        return 'Notebook'
+    return 'Other Items'
+
+
+def group_by_section(entries, student_class):
+    """[{'title': 'Stationary', 'rows': [entry, ...]}, ...] in a fixed order, items A-Z, empty sections left out."""
+    buckets = {title: [] for title in SECTION_ORDER}
+    for e in entries:
+        buckets[section_title(e['product'], student_class)].append(e)
+    return [
+        {'title': title, 'rows': sorted(buckets[title], key=lambda e: e['product'].name.lower())}
+        for title in SECTION_ORDER if buckets[title]
+    ]
