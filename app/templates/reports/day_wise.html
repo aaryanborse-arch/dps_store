@@ -44,14 +44,34 @@
                     </select>
                 </div>
                 {% endif %}
+                <div class="col-md-2">
+                    <label class="form-label mb-0">Payment Mode</label>
+                    <select name="payment_mode" class="form-select">
+                        <option value="" {{ 'selected' if not payment_mode }}>All</option>
+                        {% for m in payment_modes %}
+                        <option value="{{ m }}" {{ 'selected' if payment_mode == m }}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="col-md-4 d-flex gap-2 flex-wrap">
                     <button type="submit" class="btn btn-primary">View</button>
-                    <a href="{{ url_for('reports.download_day_wise_report', date=start_date.strftime('%Y-%m-%d'), start_date=start_date.strftime('%Y-%m-%d') if start_date != end_date else '', end_date=end_date.strftime('%Y-%m-%d') if start_date != end_date else '', city_id=selected_city_id) }}" class="btn btn-success">Download PDF</a>
+                    <a href="{{ url_for('reports.download_day_wise_report', date=start_date.strftime('%Y-%m-%d'), start_date=start_date.strftime('%Y-%m-%d') if start_date != end_date else '', end_date=end_date.strftime('%Y-%m-%d') if start_date != end_date else '', city_id=selected_city_id, payment_mode=payment_mode) }}" class="btn btn-success">Download PDF</a>
                     <a href="{{ url_for('reports.download_day_wise_excel', date=start_date.strftime('%Y-%m-%d'), start_date=start_date.strftime('%Y-%m-%d') if start_date != end_date else '', end_date=end_date.strftime('%Y-%m-%d') if start_date != end_date else '', city_id=selected_city_id) }}" class="btn btn-success">Download Excel</a>
                 </div>
             </form>
             <p class="text-muted mb-0 mt-2">Tip: use "Single Date" for one day, or fill in Custom Start + Custom End for a range, then click View.</p>
         </div>
+
+        {% if data.payment_summary %}
+        <div class="d-flex gap-2 flex-wrap mb-3">
+            {% for mode, s in data.payment_summary.items() %}
+            <div class="card px-3 py-2 {{ 'border-primary border-2' if payment_mode == mode }}">
+                <div class="text-muted small">{{ mode }} · {{ s.count }} bill(s)</div>
+                <div class="fw-bold">₹{{ '%.2f'|format(s.amount) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="mb-3">
             <input type="text" id="dayWiseSearch" class="form-control" placeholder="Search by student name, invoice no., or class..." oninput="filterDayWiseTable()">
@@ -83,7 +103,7 @@
                     <td class="day-wise-total-col">₹{{ '%.2f'|format(row.grand_total) }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="{{ 7 + data.rates|length * 2 + 1 }}" class="text-center text-muted">No bills on this date</td></tr>
+                <tr><td colspan="{{ 7 + data.rates|length * 2 + 1 }}" class="text-center text-muted">No {{ payment_mode ~ ' ' if payment_mode }}bills on this date</td></tr>
                 {% endfor %}
             </tbody>
             {% if data.rows %}

@@ -526,7 +526,8 @@ def lookup_student():
 
     for record in all_records:
         if normalize_admission_text(record.admission_number) == wanted:
-            return jsonify({'found': True, 'name': record.student_name, 'student_class': record.student_class})
+            return jsonify({'found': True, 'name': record.student_name, 'student_class': record.student_class,
+                            'class_value': normalize_class_value(record.student_class)})
 
     return jsonify({'found': False})
 

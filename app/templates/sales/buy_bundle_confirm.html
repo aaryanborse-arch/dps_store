@@ -108,7 +108,7 @@
             {% endif %}
 
             {% if compulsory_items or elective_items or optional_items %}
-            <h4 class="text-end" id="bundleTotalDisplay">Total: ₹{{ '%.2f'|format(compulsory_total) }}</h4>
+            <h4 class="text-end" id="bundleTotalDisplay" data-base-total="{{ compulsory_total or 0 }}">Total: ₹{{ '%.2f'|format(compulsory_total or 0) }}</h4>
 
             <div class="card p-4">
                 <h5>Buyer Details</h5>
@@ -135,7 +135,8 @@
     </div>
 
     <script>
-    const baseTotal = {{ compulsory_total }};
+    const totalEl = document.getElementById('bundleTotalDisplay');
+    const baseTotal = totalEl ? parseFloat(totalEl.dataset.baseTotal) : 0;
     function updateBundleTotal() {
         let total = baseTotal;
         document.querySelectorAll('.elective-cb:checked, .optional-cb:checked').forEach(cb => {

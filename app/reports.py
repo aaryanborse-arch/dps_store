@@ -344,11 +344,36 @@ def download_gst_report_excel():
                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
-def build_day_wise_report(city_id, start, end):
+PAYMENT_MODES = ['Cash', 'Card', 'UPI', 'Online']
+
+
+def get_payment_mode_filter():
+    mode = request.args.get('payment_mode', '')
+    return mode if mode in PAYMENT_MODES else None
+
+
+def build_day_wise_report(city_id, start, end, payment_mode=None):
     query = Bill.query.filter(Bill.created_at >= start, Bill.created_at <= end)
     if city_id is not None:
         query = query.filter(Bill.city_id == city_id)
-    bills = query.order_by(Bill.created_at).all()
+    all_bills = query.order_by(Bill.created_at).all()
+
+    # totals per payment mode for the whole period (shown above the table, before filtering);
+    # calculated the same way as the table's Grand Total so the numbers always match
+    payment_summary = {}
+    for b in all_bills:
+        bill_total = 0.0
+        for item in b.items:
+            bill_total += item.subtotal
+            if not item.is_gst_exempt:
+                bill_total += round(item.subtotal * item.gst_percent / 100, 2)
+        key = b.payment_method or 'Not recorded'
+        payment_summary.setdefault(key, {'count': 0, 'amount': 0.0})
+        payment_summary[key]['count'] += 1
+        payment_summary[key]['amount'] += bill_total
+    payment_summary = {k: {'count': v['count'], 'amount': round(v['amount'], 2)} for k, v in payment_summary.items()}
+
+    bills = [b for b in all_bills if b.payment_method == payment_mode] if payment_mode else all_bills
 
     STANDARD_RATES = [5.0, 18.0]
     rate_set = set(STANDARD_RATES)
@@ -402,7 +427,9 @@ def build_day_wise_report(city_id, start, end):
         'total_exempt': round(total_exempt, 2),
         'total_taxable_by_rate': {r: round(v, 2) for r, v in total_taxable_by_rate.items()},
         'total_gst_by_rate': {r: round(v, 2) for r, v in total_gst_by_rate.items()},
-        'total_grand': round(total_grand, 2)
+        'total_grand': round(total_grand, 2),
+        'payment_summary': payment_summary,
+        'payment_mode': payment_mode,
     }
 
 
@@ -425,11 +452,13 @@ def day_wise_report():
         all_cities = None
         city_label = 'Unknown'
 
-    data = build_day_wise_report(city_id, start, end)
+    payment_mode = get_payment_mode_filter()
+    data = build_day_wise_report(city_id, start, end, payment_mode)
 
     return render_template('reports/day_wise.html', data=data, all_cities=all_cities,
                             selected_city_id=request.args.get('city_id', 'all'), city_label=city_label,
-                            start_date=start_date, end_date=end_date)
+                            start_date=start_date, end_date=end_date,
+                            payment_modes=PAYMENT_MODES, payment_mode=payment_mode or '')
 
 
 @reports.route('/day-wise/download')
@@ -445,7 +474,10 @@ def download_day_wise_report():
         city_id = get_active_city_id()
         city_label = City.query.get(city_id).name if city_id else 'Unknown'
 
-    data = build_day_wise_report(city_id, start, end)
+    payment_mode = get_payment_mode_filter()
+    data = build_day_wise_report(city_id, start, end, payment_mode)
+    if payment_mode:
+        city_label = f'{city_label} ({payment_mode} only)'
     pdf_buffer = generate_day_wise_pdf(data, city_label)
 
     filename = f'sales_report_{start_date.strftime("%Y%m%d")}_to_{end_date.strftime("%Y%m%d")}.pdf'
@@ -465,7 +497,10 @@ def download_day_wise_excel():
         city_id = get_active_city_id()
         city_label = City.query.get(city_id).name if city_id else 'Unknown'
 
-    data = build_day_wise_report(city_id, start, end)
+    payment_mode = get_payment_mode_filter()
+    data = build_day_wise_report(city_id, start, end, payment_mode)
+    if payment_mode:
+        city_label = f'{city_label} ({payment_mode} only)'
     excel_buffer = generate_day_wise_excel(data, city_label)
 
     filename = f'sales_report_{start_date.strftime("%Y%m%d")}_to_{end_date.strftime("%Y%m%d")}.xlsx'
